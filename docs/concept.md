@@ -125,12 +125,53 @@ graph LR
 1. **Calculation Engine terpusat** — MTD/YTD/PTD, Stripping Ratio, FCR, dan Achievement % dihitung di backend secara konsisten (tidak lagi tersebar di formula Excel yang rawan salah). Data mentah harian disimpan, agregat dihitung/di-cache.
 2. **Import Pipeline berbasis Queue** — parsing Excel besar (778×156) jalan di background job agar UI tidak nge-hang.
 3. **Data mentah vs. agregat dipisah** — tabel harian menyimpan angka aktual per hari; kolom MTD/YTD di Excel lama TIDAK disimpan mentah, melainkan diturunkan (derived) agar selalu konsisten.
+4. **Equipment bukan data baru** — ARKA MineOps **tidak membuat ulang** master equipment. Data alat sudah ada & terkelola rapi di aplikasi **arkfleet-next** (fleet management existing PT. Arkananta), jadi MineOps **mengintegrasikan**, bukan mendupikasi. Lihat §2.4.
+
+### 2.4 Integrasi dengan arkfleet-next — Equipment Registry
+
+**Temuan penting:** aplikasi **arkfleet-next** sudah punya master data equipment yang lengkap (~1.000 unit lintas project, ~80+ unit khusus di Site 022C GPK) dengan kode unit (`E 071`, `DZ 040`, `ADT 009`, `T 112`, dll.) yang **persis sama** dengan kode unit yang dipakai di Excel Fuel Report & Daily Info Site. Tabel `arkfleet_next.equipment` bahkan sudah punya `equipment_hm_km_readings` untuk tracking HM/KM — kebutuhan yang tadinya dirancang sebagai tabel `equipment_readings` di §3.
+
+**Keputusan:** ARKA MineOps **tidak membuat tabel `equipment` sendiri**. Equipment adalah *shared master data* — single source of truth ada di arkfleet-next, MineOps hanya mereferensikannya untuk kebutuhan operasional (fuel, deployment, produksi per alat).
+
+#### 2.4.1 Dua Opsi Arsitektur Integrasi
+
+```mermaid
+graph TB
+    subgraph OPT_A["Opsi A: Shared Database ✅ Rekomendasi"]
+        A1["ARKA MineOps<br/>(Laravel app)"] -->|"koneksi DB kedua<br/>(second connection)"| A2[("MySQL — schema<br/>arkfleet_next")]
+        A1 -->|koneksi utama| A3[("MySQL — schema<br/>daily_production")]
+    end
+
+    subgraph OPT_B["Opsi B: REST API"]
+        B1["ARKA MineOps"] -->|"HTTP call<br/>(sync/async)"| B2["arkfleet-next<br/>API endpoint"]
+        B2 --> B3[("MySQL<br/>arkfleet_next")]
+    end
+```
+
+| Aspek | Opsi A — Shared Database | Opsi B — REST API |
+|-------|---------------------------|--------------------|
+| Latency | Nihil — query langsung | Ada network round-trip |
+| Kompleksitas | Rendah — cukup 1 koneksi DB tambahan di Laravel | Perlu maintain API contract, auth token, versioning |
+| Konsistensi real-time | Langsung (baca live table) | Tergantung caching/sync strategy |
+| Kopling | Erat pada level DB (perlu koordinasi skema) | Lebih *decoupled*, tapi lebih banyak moving parts |
+| Ketergantungan infra | Kedua app harus di server DB yang sama/reachable | Bisa beda server, tapi butuh app arkfleet-next selalu "up" |
+
+**Rekomendasi: Opsi A — Shared Database.** Karena arkfleet-next dan ARKA MineOps **sama-sama berjalan di VPS Iwan (server yang sama)**, shared database jauh lebih sederhana: tidak perlu bangun/maintain API baru di sisi arkfleet-next, tidak ada latency, dan data selalu konsisten real-time (begitu equipment baru ditambahkan/diubah di arkfleet-next, langsung "kelihatan" di MineOps tanpa proses sync tambahan).
+
+#### 2.4.2 Prinsip Referensi Data
+
+- Equipment di ARKA MineOps disimpan sebagai **`equipment_id` (foreign key reference)** ke `arkfleet_next.equipment.id` — **bukan** kolom duplikat (unit_code, model, dst. tidak di-copy ulang ke tabel MineOps).
+- Data **operasional** (shift assignment, produksi per alat, konsumsi fuel) tetap murni domain MineOps karena arkfleet-next tidak punya konteks ini.
+- Data **HM/KM** (untuk kalkulasi FCR) diambil dari `arkfleet_next.equipment_hm_km_readings` yang **sudah ada** — MineOps tidak perlu bikin tabel readings sendiri lagi (lihat perubahan ERD di §3).
+- Filtering equipment ke scope Site 022C dilakukan via `project_code = '022C'` pada tabel `arkfleet_next.equipment`.
 
 ---
 
 ## 3. Entity Relationship Diagram (ERD)
 
 Model data dirancang agar ketiga laporan menyatu pada `equipment`, `site/pit`, `shift`, dan `production_date`.
+
+> **Catatan integrasi (lihat §2.4):** `equipment` **tidak lagi dimodelkan sebagai tabel milik MineOps**. Master equipment (`arkfleet_next.equipment`) berada di aplikasi **arkfleet-next** — digambar di ERD sebagai kotak *external reference* (garis putus-putus) yang direferensikan oleh `FUEL_RECORDS` dan `EQUIPMENT_DEPLOYMENTS` via `equipment_id`. Tabel `EQUIPMENT_TYPES` dan `EQUIPMENT_READINGS` yang sebelumnya direncanakan **dihapus** dari skema MineOps karena setara `plant_types`/`equipment_hm_km_readings` sudah tersedia di arkfleet-next.
 
 ```mermaid
 erDiagram
@@ -140,10 +181,8 @@ erDiagram
     SITES ||--o{ PITS : contains
     PITS ||--o{ PRODUCTION_RECORDS : "produced at"
 
-    EQUIPMENT_TYPES ||--o{ EQUIPMENT : classifies
-    EQUIPMENT ||--o{ FUEL_RECORDS : consumes
-    EQUIPMENT ||--o{ EQUIPMENT_DEPLOYMENTS : "deployed as"
-    EQUIPMENT ||--o{ EQUIPMENT_READINGS : "logs HM/KM"
+    ARKFLEET_EQUIPMENT ||..o{ FUEL_RECORDS : "references (external, arkfleet-next)"
+    ARKFLEET_EQUIPMENT ||..o{ EQUIPMENT_DEPLOYMENTS : "references (external, arkfleet-next)"
 
     SHIFTS ||--o{ PRODUCTION_RECORDS : "measured in"
     SHIFTS ||--o{ FUEL_RECORDS : "measured in"
@@ -184,19 +223,17 @@ erDiagram
         string code "PIT1/PIT2"
         string owner "GPK/ARKA"
     }
-    EQUIPMENT_TYPES {
-        bigint id PK
-        string category "Excavator/Dozer/ADT/Dumptruck/Support"
-        string role "Loader/Hauler/Support"
-    }
-    EQUIPMENT {
-        bigint id PK
-        bigint equipment_type_id FK
-        string unit_code "E 071"
-        string model "Hitachi EX1200-6"
-        string asset_no
-        string ownership "ARKA/GPK/Rental"
-        string status "active/breakdown/standby"
+    ARKFLEET_EQUIPMENT {
+        bigint id PK "external — arkfleet_next.equipment"
+        string unit_code "E 071 (matches Excel codes)"
+        string description "Excavator Hitachi EX1200-6"
+        bigint unit_model_id FK "external"
+        bigint plant_type_id FK "1 Digger/2 Hauler/3 Support/4 Heavy Equip"
+        bigint asset_category_id FK "1 Mayor/2 Minor"
+        bigint unitstatus_id FK "1 Active/2 Inactive/3 Scrap/4 Sold"
+        string project_code FK "022C = GPK Project"
+        boolean is_active
+        boolean is_rfu
     }
     SHIFTS {
         bigint id PK
@@ -226,24 +263,17 @@ erDiagram
     FUEL_RECORDS {
         bigint id PK
         bigint daily_entry_id FK
-        bigint equipment_id FK
+        bigint equipment_id FK "FK -> arkfleet_next.equipment.id"
         bigint shift_id FK
         bigint fuel_type_id FK
         decimal liters
         decimal working_hours
         string usage_category "WasteLoading/WasteHauling/Dewatering/General"
     }
-    EQUIPMENT_READINGS {
-        bigint id PK
-        bigint equipment_id FK
-        date reading_date
-        decimal hm_km_start
-        decimal hm_km_end
-    }
     EQUIPMENT_DEPLOYMENTS {
         bigint id PK
         bigint daily_entry_id FK
-        bigint equipment_id FK
+        bigint equipment_id FK "FK -> arkfleet_next.equipment.id"
         bigint pit_id FK
         bigint shift_id FK
         decimal prod_ob_bcm
@@ -305,9 +335,10 @@ erDiagram
 
 - **`daily_entries` sebagai "header" harian** — satu record per (tanggal, site). Semua detail (produksi, fuel, deployment, info site) tergantung padanya. Ini yang menggantikan "satu file Excel per hari".
 - **Agregat (MTD/YTD/PTD/Achievement) TIDAK disimpan sebagai kolom mentah** — dihitung on-the-fly oleh Calculation Engine + di-cache di Redis. Alternatif untuk performa: tabel `production_aggregates` (materialized summary) yang di-refresh saat data harian di-approve.
-- **`equipment_readings` terpisah dari `fuel_records`** — karena HM/KM awal-akhir adalah properti alat per hari, bukan per pemakaian fuel. Menghindari duplikasi.
+- **`equipment` bukan tabel MineOps** — `equipment_id` di `fuel_records` & `equipment_deployments` adalah FK ke `arkfleet_next.equipment.id` (lihat §2.4). Tidak ada duplikasi kolom unit_code/model/status; semua atribut alat dibaca langsung dari arkfleet-next.
+- **HM/KM awal-akhir tidak perlu tabel `equipment_readings` sendiri** — sudah tersedia di `arkfleet_next.equipment_hm_km_readings` (kolom `reading_date`, `reading_type` [hm/km], `reading_value`). MineOps membaca tabel ini untuk kalkulasi FCR, bukan mencatat ulang.
 - **Stripping Ratio** = `Σ OB (bcm) / Σ Coal (ton)` — metrik turunan, tidak disimpan mentah.
-- **FCR (Fuel Consumption Ratio)** = liter fuel per satuan produksi (bcm/ton) atau per jam kerja — turunan dari `fuel_records` + `production_records`.
+- **FCR (Fuel Consumption Ratio)** = liter fuel per satuan produksi (bcm/ton) atau per jam kerja — turunan dari `fuel_records` + `production_records`, dengan HM/KM diambil dari `arkfleet_next.equipment_hm_km_readings`.
 
 ---
 
@@ -316,11 +347,13 @@ erDiagram
 ### Modul A — Master Data Management (`MO-Master`)
 | Fitur | Deskripsi |
 |-------|-----------|
-| Equipment Registry | CRUD 40+ unit: unit code, tipe, model, asset no, ownership, status. Tracking HM/KM. |
+| ~~Equipment Registry (CRUD)~~ → **Equipment Assignment** | **Tidak perlu dibuat dari nol.** Master unit (kode, tipe, model, ownership, status) sudah ada di **arkfleet-next**. Admin cukup **memilih equipment yang sudah ada** dari list arkfleet-next (~80+ unit di Site 022C), lalu **assign ke PIT** & tandai sebagai *active for production tracking*. Lihat §2.4 & §9.6. |
 | Site & PIT Config | Kelola site (022C) dan PIT (PIT1 GPK, PIT2 GPK), kepemilikan area. |
 | Shift Definition | Day/Night dengan jam mulai-selesai. |
 | Fuel Type & Price | Jenis solar + histori harga per tanggal efektif (untuk kalkulasi biaya). |
 | User & Role | Manajemen user + role-based access. |
+
+> **Equipment Assignment (baru):** halaman untuk browse/search equipment dari `arkfleet_next.equipment` (filter by `project_code = 022C`, `plant_type`, `unitstatus`), pilih unit yang relevan, lalu assign ke PIT + tandai aktif untuk tracking produksi/fuel harian. Equipment baru yang ditambahkan admin fleet di arkfleet-next **otomatis muncul** di list ini (shared database, real-time) tanpa proses sync manual — admin MineOps hanya perlu meng-assign-nya ke PIT saat unit tersebut mulai beroperasi di site.
 
 ### Modul B — Daily Data Entry (`MO-Entry`)
 | Fitur | Deskripsi |
@@ -533,6 +566,7 @@ flowchart LR
 | API (mobile/bot) | Laravel Sanctum (token) untuk endpoint bot & PWA sync |
 | Testing | Pest / PHPUnit + factories |
 | Audit log | `owen-it/laravel-auditing` (jejak perubahan data operasional) |
+| **Shared DB dengan arkfleet-next** | ARKA MineOps memakai **MySQL yang sama** dengan arkfleet-next (satu server, VPS Iwan) untuk membaca master equipment — lihat §2.4 & §7.3.1. |
 
 ### 7.2 Frontend — Inertia + React + Ant Design
 
@@ -551,9 +585,22 @@ flowchart LR
 ### 7.3 Database — MySQL 8
 
 - InnoDB, utf8mb4.
-- Index komposit pada `(production_date, site_id)`, `(equipment_id, reading_date)`, `(daily_entry_id)`.
+- Index komposit pada `(production_date, site_id)`, `(equipment_id)`, `(daily_entry_id)`.
 - Pertimbangkan **generated columns** atau **summary tables** untuk agregat yang sering dibaca.
 - Partitioning per tahun untuk `fuel_records`/`production_records` bila data historis besar.
+
+#### 7.3.1 Shared Database dengan arkfleet-next
+
+Karena kedua aplikasi berjalan di server yang sama (VPS Iwan), ARKA MineOps **memakai instance MySQL yang sama** dengan arkfleet-next untuk membaca master equipment (lihat §2.4). Ada dua kemungkinan penataan skema:
+
+| Skenario | Setup Laravel |
+|----------|---------------|
+| **Beda schema/database** (mis. `daily_production` vs `arkfleet_next`, direkomendasikan agar isolasi tetap jelas) | Definisikan **koneksi database kedua** di `config/database.php` (mis. `'arkfleet' => [...]`), lalu model `Equipment` memakai `protected $connection = 'arkfleet';` |
+| **Sama schema/database** | Tidak perlu koneksi tambahan — cukup model `Equipment` yang menunjuk ke tabel `arkfleet_next.equipment` (dengan `protected $table` sesuai nama fisik jika perlu prefix). |
+
+- Model `Equipment` di MineOps bersifat **read-only** (tidak melakukan create/update/delete) — fleet lifecycle (tambah unit, ubah status, dsb.) tetap jadi tanggung jawab arkfleet-next.
+- Relasi Eloquent (`FuelRecord::equipment()`, `EquipmentDeployment::equipment()`) tetap bisa memakai `belongsTo`, cukup arahkan ke model `Equipment` pada koneksi yang benar — Laravel mendukung `belongsTo` lintas koneksi database selama berada di server yang sama.
+- **User & credential DB** untuk koneksi ke schema arkfleet-next sebaiknya dibuat terbatas (grant `SELECT` saja) agar MineOps tidak bisa tidak sengaja mengubah data fleet.
 
 ### 7.4 Real-time & Offline
 
@@ -589,10 +636,10 @@ flowchart LR
 - **Deliverable:** skeleton app jalan + auth login.
 
 ### Fase 1 — Master Data & Foundation (1.5 minggu)
-- Modul Master (Equipment, Site/PIT, Shift, Fuel Type/Price).
+- Modul Master (Site/PIT, Shift, Fuel Type/Price).
+- Setup koneksi shared database ke `arkfleet_next` + model `Equipment` (read-only) + halaman **Equipment Assignment** (§4).
 - Role & permission (4 role).
-- Seed 40+ equipment dari daftar existing.
-- **Deliverable:** admin bisa kelola semua master data.
+- **Deliverable:** admin bisa kelola semua master data & assign ~80+ equipment existing dari arkfleet-next ke PIT.
 
 ### Fase 2 — Daily Data Entry (2 minggu)
 - Form Produksi, Fuel, Equipment Deployment, Info Site.
@@ -702,11 +749,47 @@ flowchart LR
 - **Keamanan** — akses via Tailscale (privat), role-based, tidak expose ke publik di fase awal.
 - **Skalabilitas** — desain sudah multi-site (`sites` table) walau sekarang hanya 022C, memudahkan ekspansi ke site lain nanti.
 
+### 9.6 Integrasi Equipment dengan arkfleet-next
+
+**Prinsip: clean separation of concerns, single source of truth untuk equipment.**
+
+```mermaid
+graph LR
+    subgraph MASTER["MASTER — arkfleet-next"]
+        M1["Fleet Management"]
+        M2["Asset Tracking"]
+        M3["Depreciation & Acquisition"]
+        M4["HM/KM Readings"]
+    end
+
+    subgraph OPS["OPERATIONAL — ARKA MineOps"]
+        O1["Daily Production"]
+        O2["Fuel Usage"]
+        O3["Equipment Deployment per Shift"]
+    end
+
+    MASTER -.->|"equipment_id (reference)"| OPS
+```
+
+| | arkfleet-next | ARKA MineOps |
+|---|---------------|---------------|
+| **Peran** | **Master** — fleet management, asset tracking, depreciation, HM/KM readings | **Operational** — daily production, fuel, deployment per shift |
+| **Kepemilikan data equipment** | Sumber kebenaran tunggal (single source of truth) | Hanya mereferensikan via `equipment_id`, tidak menyimpan salinan atribut |
+| **CRUD equipment** | Ya — tambah/ubah/hapus unit, ubah status, dsb. | Tidak — read-only, hanya assign ke PIT |
+
+**Manfaat:**
+- **No data duplication** — unit_code, model, status, dst. hanya ada di satu tempat; tidak ada risiko data "beda" antara dua aplikasi.
+- **Perubahan status/HM/KM di arkfleet-next langsung terlihat** di MineOps (shared DB, real-time), tanpa job sinkronisasi terpisah.
+- **Fleet lifecycle** (akuisisi, penjualan, scrap) tetap sepenuhnya dikelola tim fleet di arkfleet-next — MineOps tidak perlu tahu/terlibat proses ini, cukup filter equipment yang `is_active`/`unitstatus = ACTIVE` saat assignment.
+- Jika di kemudian hari arkfleet-next perlu dipisah ke server lain, opsi arsitektur bisa beralih ke **REST API** (§2.4.1 Opsi B) tanpa mengubah konsep `equipment_id` sebagai reference di skema MineOps.
+
 ---
 
 ## Ringkasan Eksekutif
 
 **ARKA MineOps** mengubah 3 laporan Excel terpisah (DPR, Daily Info Site, Fuel Report) yang dikirim manual via email menjadi **satu dashboard terintegrasi real-time**. Kuncinya: menyatukan ketiga laporan pada poros **waktu (tanggal+shift)** dan **aset (equipment+PIT)**, dengan **Calculation Engine terpusat** yang menjamin angka MTD/YTD/SR/FCR/Achievement selalu konsisten.
+
+Penting: ARKA MineOps **tidak membangun ulang master data equipment**. Aplikasi ini memanfaatkan registry equipment yang sudah ada di **arkfleet-next** (± 1.000 unit, ± 80+ khusus Site 022C, kode unit persis sama dengan Excel lama, termasuk HM/KM readings) melalui **shared MySQL database** — MineOps hanya mereferensikan `equipment_id`, mempercepat pengembangan dan menjaga single source of truth untuk data alat berat.
 
 Pendekatan implementasi: **MVP 6-7 minggu** (master data + entry + dashboard), lalu extend ke plan tracking, Excel import (migrasi), PWA offline, dan notifikasi/AI. Migrasi dilakukan **paralel (dual-run)** agar transisi dari kebiasaan email berjalan mulus.
 
