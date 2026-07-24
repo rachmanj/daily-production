@@ -2,7 +2,7 @@
 
 > **Dokumen Konsep (Brainstorming)** · Greenfield Project
 > PT. Arkananta · **Enterprise-wide, multi-site** — mencakup seluruh site operasional (022C Graha Panca Karsa, 021C SBI, 017C KPUC, 011C Kitadin, dan site lain), bukan hanya satu site tunggal.
-> Versi 0.2 · Status: Draft konsep (belum coding) — revisi: integrasi via REST API + multi-site
+> Versi 0.3 · Status: Draft konsep (belum coding) — revisi: integrasi via REST API + multi-site + integrasi procurement/material KPI dari ARK-GS (SAP B1)
 
 ---
 
@@ -106,6 +106,7 @@ graph LR
 
     subgraph EXT["Integrasi Eksternal"]
         ARKFLEET["arkfleet-next<br/>REST API (equipment)"]
+        ARKGS["ARK-GS<br/>REST API (procurement/material KPI)<br/>← sync SAP B1"]
         TG["Telegram / WhatsApp"]
         AI["OpenRouter API<br/>(opsional: anomaly & insight)"]
     end
@@ -115,11 +116,23 @@ graph LR
     HTTP --> IMPORT & EXPORT
     SVC --> MYSQL
     SVC -->|"HTTP call<br/>+ cache Redis"| ARKFLEET
+    SVC -->|"HTTP call<br/>+ cache Redis"| ARKGS
     CALC --> REDIS
     IMPORT --> FILES & MYSQL
     NOTIF --> TG
     SVC -.opsional.-> AI
     NOTIF --> REDIS
+```
+
+**Integrasi tiga sistem (three-system integration):** ARKA MineOps berperan sebagai **unified dashboard** yang menyatukan tiga sumber data lewat REST API — data **produksi** (native, input harian), data **equipment** (dari arkfleet-next), dan data **procurement/material** (dari ARK-GS yang men-sync dari SAP B1). Ketiganya dikonsumsi via pola yang konsisten: Laravel HTTP Client + cache Redis + graceful degradation.
+
+```mermaid
+graph LR
+    SAP[("SAP B1<br/>SQL Server")] -->|"sync 2x/hari<br/>(SapService)"| ARKGS["ARK-GS<br/>(ERP dashboard)"]
+    ARKGS -->|"REST API<br/>PO/GRPO/NPI/Budget"| MINEOPS["ARKA MineOps<br/>(Unified Dashboard)"]
+    ARKFLEET["arkfleet-next<br/>(Fleet Mgmt)"] -->|"REST API<br/>equipment/HM-KM"| MINEOPS
+    PROD["Input Produksi Harian<br/>(DPR/Fuel/Info Site)"] -->|native| MINEOPS
+    MINEOPS --> USERS["Manajemen & Supervisor<br/>(produksi + procurement dalam 1 layar)"]
 ```
 
 **Keputusan arsitektur kunci:**
@@ -130,6 +143,7 @@ graph LR
 4. **Equipment bukan data baru** — ARKA MineOps **tidak membuat ulang** master equipment. Data alat sudah ada & terkelola rapi di aplikasi **arkfleet-next** (fleet management existing PT. Arkananta), jadi MineOps **mengintegrasikan**, bukan mendupikasi. Lihat §2.4.
 5. **Integrasi via REST API, bukan shared database** — ARKA MineOps dan arkfleet-next tetap **dua aplikasi independen**: masing-masing bisa di-*deploy* dan di-*scale* terpisah, tanpa *coupling* skema database satu sama lain. Komunikasi murni lewat HTTP/REST + caching. Lihat §2.4.
 6. **Site sebagai first-class citizen** — aplikasi dirancang **enterprise-wide** untuk seluruh site PT. Arkananta, bukan hanya satu site. Setiap `daily_entries` sudah terikat ke `site_id`, dan pemilihan site adalah elemen utama navigasi UI (site selector di navbar/dashboard) — lihat §6.
+7. **Procurement & material KPI di-*consume*, bukan di-*sync* ulang** — data pengadaan (PO, GRPO) dan efisiensi material (NPI, Budget) sudah di-sync dari **SAP B1** oleh aplikasi **ARK-GS** (existing). ARKA MineOps **tidak menduplikasi sync SAP**, melainkan mengonsumsi KPI-nya **via REST API** dengan pola yang sama seperti arkfleet-next (HTTP Client + Redis cache + fallback). Ini menjadikan MineOps sebagai *unified dashboard* produksi + procurement. Lihat §2.5.
 
 ### 2.4 Integrasi dengan arkfleet-next — Equipment Registry
 
@@ -169,6 +183,59 @@ graph TB
 - Data **HM/KM** (untuk kalkulasi FCR) diambil via endpoint `GET /api/equipment/{id}/hm-km-readings` dari arkfleet-next — MineOps tidak perlu bikin tabel readings sendiri lagi (lihat perubahan ERD di §3, detail endpoint di §9.6).
 - Filtering equipment ke scope site tertentu dilakukan via query parameter `project_code` pada endpoint `GET /api/equipment` (mis. `project_code=022C`, `021C`, `017C`, dst.) — sesuai site yang sedang aktif dipilih user (§6).
 
+### 2.5 Integrasi dengan ARK-GS — Procurement & Material KPIs
+
+**Temuan penting:** PT. Arkananta sudah punya aplikasi **ARK-GS** (`ark-gs-newdb`) — ERP dashboard existing (Laravel 8 + AdminLTE) yang **men-sync data procurement & material dari SAP B1** (SQL Server) secara terjadwal **dua kali sehari (06:05 & 12:05 WITA)** via `SapService`. ARK-GS sudah mengelola KPI yang **melengkapi** data produksi MineOps: **PO Sent, GRPO, NPI, dan Budget** — lintas project (`017C`, `021C`, `022C`, `025C`, `026C`, `APS`, `023C`), berjalan di **VPS yang sama** dengan arkfleet-next dan (rencananya) ARKA MineOps.
+
+**Keputusan:** ARKA MineOps **tidak menduplikasi sync SAP B1**. Sync procurement adalah tanggung jawab ARK-GS (single source of truth untuk data SAP). MineOps **mengonsumsi KPI-nya murni via REST API** — konsisten dengan pendekatan API-first yang dipakai untuk arkfleet-next (§2.4). Dengan begitu, MineOps menjadi **unified dashboard**: KPI produksi (native) + KPI equipment (arkfleet-next) + KPI procurement/material (ARK-GS) dalam satu layar.
+
+#### 2.5.1 Peran ARK-GS (SAP B1 Procurement Sync)
+
+ARK-GS men-sync & menormalkan data SAP B1 ke dalam empat domain KPI:
+
+| Domain KPI | Sumber data ARK-GS | KPI yang dihitung |
+|------------|--------------------|-------------------|
+| **PO Sent** (Purchase Order) | `powithetas` (raw SAP) → `purchase_orders` + `purchase_order_items` | **PO Sent vs Plant Budget** — % budget yang terserap PO per project |
+| **GRPO** (Goods Receipt PO) | `grpos` (dedup key: `po_no`+`grpo_no`+`item_code`) | **PO Sent vs GRPO** — % item PO yang sudah diterima per project (≥80% hijau, <80% merah) |
+| **NPI** (Net Production Index) | `incomings` (barang masuk) vs `migis` (material issue) | **Incoming Qty / Outgoing Qty** per project — makin rendah makin efisien |
+| **Budget** (Regular + CAPEX) | `budgets` (type: regular/capex, per project, per bulan/tahun) | Budget vs actual spending |
+
+#### 2.5.2 Pendekatan Integrasi: REST API (konsisten dengan arkfleet-next)
+
+```mermaid
+graph TB
+    subgraph SRC["SAP B1 (SQL Server)"]
+        SAP[("DB::connection('sap_sql')")]
+    end
+
+    subgraph GS["ARK-GS (existing ERP dashboard)"]
+        SYNC["SapService<br/>sync 2x/hari (06:05 & 12:05 WITA)"]
+        GSDB[("MySQL ark-gs<br/>powithetas, purchase_orders,<br/>grpos, incomings, migis, budgets")]
+        GSAPI["REST API<br/>/api/kpi/po-sent · /api/kpi/grpo<br/>/api/kpi/npi · /api/kpi/budget"]
+    end
+
+    subgraph MO["ARKA MineOps"]
+        SVC["ProcurementApiService<br/>(Laravel HTTP Client)"]
+        CACHE[("Redis Cache<br/>TTL ~6 jam, sesuai jadwal sync")]
+        DASH["MO-Procurement Dashboard<br/>+ Combined Operational View"]
+    end
+
+    SAP -->|"sync"| SYNC --> GSDB --> GSAPI
+    GSAPI -->|"HTTP call (per project/periode)"| SVC
+    SVC --> CACHE --> DASH
+```
+
+**Data flow:** `SAP B1 → ARK-GS sync (2x/hari) → ARK-GS REST API → ARKA MineOps (HTTP Client + Redis cache) → dashboard procurement + combined view`.
+
+**Mengapa REST API (bukan direct DB read):** meski ARK-GS berada di VPS yang sama (opsi *direct DB read read-only* secara teknis mungkin), pendekatan **REST API tetap dipilih** demi konsistensi dengan integrasi arkfleet-next (§2.4.1) — decoupling skema, deploy/scale independen, kontrak eksplisit, dan keamanan (tidak perlu kredensial DB lintas aplikasi). Endpoint tambahan yang perlu di-*expose* ARK-GS: `GET /api/kpi/po-sent`, `GET /api/kpi/grpo`, `GET /api/kpi/npi`, `GET /api/kpi/budget` (detail di §7.3.2 & §9.7). ARK-GS sudah punya beberapa API controller (`Api/DashboardDailyApiController`, `Api/CapexApiController`, `Api/SupplierController`, `Api/CoalPriceController`), jadi menambah endpoint KPI ini konsisten dengan arsitekturnya.
+
+#### 2.5.3 Prinsip Referensi & Caching Data Procurement
+
+- Data procurement bersifat **read-only** di sisi MineOps — semua sync & normalisasi SAP tetap milik ARK-GS.
+- **Kunci join lintas sistem:** `project_code` (mis. `022C`, `021C`, `017C`) yang **konsisten** dengan `site.code` di MineOps dan `project_code` equipment di arkfleet-next — inilah yang memungkinkan *combined view* produksi + procurement per site.
+- **Freshness realistis:** karena ARK-GS sync 2x/hari, TTL cache MineOps di-set selaras (mis. ~6 jam) + tampilkan timestamp **"last synced"** agar user tahu kesegaran data (§9.7).
+- **Graceful degradation:** bila ARK-GS API down, tampilkan data cache terakhir + warning, tidak gagal total (§9.7) — sama seperti pola arkfleet-next (§9.6.4).
+
 ---
 
 ## 3. Entity Relationship Diagram (ERD)
@@ -176,6 +243,8 @@ graph TB
 Model data dirancang agar ketiga laporan menyatu pada `equipment`, `site/pit`, `shift`, dan `production_date`.
 
 > **Catatan integrasi (lihat §2.4):** `equipment` **tidak lagi dimodelkan sebagai tabel milik MineOps**. Master equipment (`arkfleet_next.equipment`) berada di aplikasi **arkfleet-next** — digambar di ERD sebagai kotak *external reference* (garis putus-putus) yang direferensikan oleh `FUEL_RECORDS` dan `EQUIPMENT_DEPLOYMENTS` via `equipment_id`, diakses **via REST API** (bukan shared DB — lihat §2.4). Tabel `EQUIPMENT_TYPES` dan `EQUIPMENT_READINGS` yang sebelumnya direncanakan **dihapus** dari skema MineOps karena setara `plant_types`/`equipment_hm_km_readings` sudah tersedia di arkfleet-next dan diambil via API.
+>
+> **Catatan integrasi procurement (lihat §2.5):** KPI procurement/material **bukan tabel milik MineOps** — sumbernya adalah **ARK-GS** (yang men-sync dari SAP B1). Digambar di ERD sebagai kotak *external reference* (garis putus-putus): `ARKGS_PO_SENT`, `ARKGS_GRPO`, `ARKGS_BUDGET` (diakses via REST API dari ARK-GS), dan `ARKGS_NPI` (metrik turunan yang dihitung ARK-GS dari `incomings`/`migis`). Semuanya di-*join* ke data MineOps lewat `project_code` yang konsisten dengan `SITES.code`. MineOps **tidak menyimpan tabel** ini secara mentah — hanya mengonsumsi via API + cache Redis (§7.3.2).
 
 ```mermaid
 erDiagram
@@ -187,6 +256,11 @@ erDiagram
 
     ARKFLEET_EQUIPMENT ||..o{ FUEL_RECORDS : "references (external, via REST API)"
     ARKFLEET_EQUIPMENT ||..o{ EQUIPMENT_DEPLOYMENTS : "references (external, via REST API)"
+
+    SITES ||..o{ ARKGS_PO_SENT : "KPI per project_code (external, ARK-GS API)"
+    SITES ||..o{ ARKGS_GRPO : "KPI per project_code (external, ARK-GS API)"
+    SITES ||..o{ ARKGS_BUDGET : "KPI per project_code (external, ARK-GS API)"
+    SITES ||..o{ ARKGS_NPI : "derived metric per project_code (external, ARK-GS API)"
 
     SHIFTS ||--o{ PRODUCTION_RECORDS : "measured in"
     SHIFTS ||--o{ FUEL_RECORDS : "measured in"
@@ -333,7 +407,47 @@ erDiagram
         decimal liters
         date movement_date
     }
+    ARKGS_PO_SENT {
+        string project_code "external — join ke SITES.code (via ARK-GS API)"
+        int year
+        int month
+        decimal po_amount "total PO Sent (item_amount)"
+        decimal budget_amount "plant budget periode ini"
+        decimal budget_pct "PO Sent / Budget (%) — derived"
+        datetime last_synced_at "kesegaran data dari SAP B1"
+    }
+    ARKGS_GRPO {
+        string project_code "external — join ke SITES.code (via ARK-GS API)"
+        int year
+        int month
+        decimal po_amount "total PO Sent"
+        decimal grpo_amount "total GRPO diterima"
+        decimal completion_pct "GRPO / PO Sent (%) — derived"
+        string status "Good >=80 / Attention 60-80 / Critical <60"
+        datetime last_synced_at
+    }
+    ARKGS_BUDGET {
+        string project_code "external — join ke SITES.code (via ARK-GS API)"
+        int year
+        int month
+        string type "regular/capex"
+        decimal budget_amount
+        decimal actual_amount "actual spending"
+        decimal utilization_pct "actual / budget (%) — derived"
+        datetime last_synced_at
+    }
+    ARKGS_NPI {
+        string project_code "external — derived dari incomings/migis (ARK-GS)"
+        int year
+        int month
+        decimal incoming_qty "barang masuk (filtered dept/item)"
+        decimal outgoing_qty "material issue (filtered dept/item)"
+        decimal npi_index "incoming / outgoing — makin rendah makin efisien"
+        datetime last_synced_at
+    }
 ```
+
+> **Catatan ERD external procurement:** keempat entitas `ARKGS_*` di atas **tidak dibuat sebagai tabel MySQL di MineOps** — mereka adalah *shape* respons API dari ARK-GS (hasil agregasi per `project_code` + periode), digambar di ERD hanya untuk memperjelas field yang dikonsumsi. `budget_pct`, `completion_pct`, `utilization_pct`, dan `npi_index` adalah **metrik turunan** (bisa dihitung ARK-GS di API atau MineOps saat render). `ARKGS_NPI` khususnya diturunkan ARK-GS dari tabel `incomings` (barang masuk) & `migis` (material issue) dengan filter `dept_code` (40, 50, 60, 140, 200) dan pengecualian item tertentu (CO%, EX%, FU%, PB%, Pp%, SA%, SO%, SV%).
 
 ### 3.1 Catatan Desain Tabel
 
@@ -377,6 +491,20 @@ erDiagram
 | Fuel Dashboard | Konsumsi per equipment, FCR trend, breakdown per kategori usage. |
 | Equipment Utilization | Availability, working hours, produktivitas per alat. |
 | Drill-down | Klik KPI → detail per PIT → per shift → per equipment. |
+
+### Modul C2 — Procurement & Material KPI (`MO-Procurement`)
+
+Modul ini **mengonsumsi KPI dari ARK-GS via REST API** (§2.5) — bukan sync SAP sendiri. Semua data read-only, di-*cache* Redis, dengan indikator "last synced" (§9.7). Bisa berdiri sebagai halaman sendiri **atau** menyatu ke MO-Dashboard sebagai *combined view*.
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| **Budget Performance** (PO Sent vs Budget) | KPI **% budget terserap PO** per project. Bar chart: Budget (hijau) vs PO Sent (biru) per project + gauge utilisasi budget keseluruhan. Sumber: `GET /api/kpi/po-sent` + `GET /api/kpi/budget`. |
+| **GRPO Completion** (GRPO vs PO Sent) | KPI **% item PO yang sudah diterima** per project. Bar chart: PO Sent (biru) vs GRPO (warna sesuai %) + gauge completion. Threshold: **≥80% Good** / **60–80% Attention** / **<60% Critical**. Sumber: `GET /api/kpi/grpo`. |
+| **NPI Efficiency** (In/Out ratio) | KPI **efisiensi material** = Incoming Qty / Outgoing Qty per project. Bar chart: Incoming vs Outgoing + gauge NPI index. Threshold (makin rendah makin baik): **≤0.85 Excellent** / **≤1.0 Good** / **≤1.2 Average** / **≤1.5 Below** / **>1.5 Critical**. Sumber: `GET /api/kpi/npi`. |
+| **Budget vs Actual (Regular + CAPEX)** | Plant budget (regular & CAPEX) per project per bulan/tahun vs actual spending. Sumber: `GET /api/kpi/budget`. |
+| **Combined Operational View** | Satu dashboard yang menampilkan **KPI produksi** (OB/Coal/SR/Fuel) + **KPI procurement** (PO Sent/GRPO/NPI/Budget/CAPEX) berdampingan, filter by **project (site selector), bulan, tahun** — *join* lewat `project_code` yang konsisten dengan `sites.code`. |
+
+> **Catatan integrasi:** modul ini memakai `ProcurementApiService` (Laravel HTTP Client + Redis cache, §7.3.2) dengan pola resiliency/fallback yang sama seperti integrasi arkfleet-next (§9.6.4). Filter `project_code` pada tiap endpoint menyelaraskan KPI procurement dengan site yang aktif dipilih user (§6). Karena ARK-GS sync SAP 2x/hari, data KPI menampilkan timestamp **"last synced"** (§9.7).
 
 ### Modul D — Plan vs Actual (`MO-Plan`)
 | Fitur | Deskripsi |
@@ -489,9 +617,17 @@ flowchart LR
 │ ⛽ Fuel     │ │ 45.230 Bcm││ 8.120 ton ││  RATIO    ││ 32.400 L  │    │
 │ 🚜 Equipment│ │ ▲ 96% plan││ ▲ 92% plan││   5.57    ││ FCR 0.71  │    │
 │ 📋 Plan     │ └───────────┘└───────────┘└───────────┘└───────────┘    │
-│ 📊 Reports  │  ┌─────────────────────────┐┌──────────────────────┐   │
-│ ⚙ Master    │  │ TREN OB & COAL (30 hari)││ ACHIEVEMENT MTD      │   │
-│ 👥 Users    │  │   ╱╲    ╱╲___╱          ││  OB   ███████░░ 88%  │   │
+│ 🧾 Procure  │  ─ PROCUREMENT & MATERIAL (ARK-GS · SAP B1) ────────────│
+│ 📊 Reports  │ ┌───────────┐┌───────────┐┌───────────┐┌───────────┐    │
+│ ⚙ Master    │ │  BUDGET   ││   GRPO    ││    NPI    ││  CAPEX    │    │
+│ 👥 Users    │ │ PO/Budget ││ Completion││ In/Out    ││ Realisasi │    │
+│             │ │  73% used ││  ● 84% ✓  ││  0.92 ✓   ││  61% used │    │
+│             │ │ (gauge)   ││ (≥80 good)││(≤1.0 good)││ (gauge)   │    │
+│             │ └───────────┘└───────────┘└───────────┘└───────────┘    │
+│             │  ⟳ last synced: 24 Jul 2026 12:05 WITA (ARK-GS)         │
+│             │  ┌─────────────────────────┐┌──────────────────────┐   │
+│             │  │ TREN OB & COAL (30 hari)││ ACHIEVEMENT MTD      │   │
+│             │  │   ╱╲    ╱╲___╱          ││  OB   ███████░░ 88%  │   │
 │             │  │  ╱  ╲__╱                ││  Coal ██████░░░ 79%  │   │
 │             │  │ (line chart)            ││  (gauge/progress)    │   │
 │             │  └─────────────────────────┘└──────────────────────┘   │
@@ -501,8 +637,16 @@ flowchart LR
 │             │  │ PIT2 GPK  ████   21.1k  ││ ● Breakdown   4      │   │
 │             │  │ (bar chart)             ││ ● Standby     2      │   │
 │             │  └─────────────────────────┘└──────────────────────┘   │
+│             │  ┌─────────────────────────┐┌──────────────────────┐   │
+│             │  │ PO SENT vs GRPO per proj││ NPI IN/OUT per proj  │   │
+│             │  │ 022C ███████░ 84%       ││ 022C  In 1.2k Out 1.3│   │
+│             │  │ 021C █████░░░ 62% ⚠     ││ 021C  In 0.9k Out 1.0│   │
+│             │  │ (bar: PO biru / GRPO)   ││ (bar: incoming/outgo)│   │
+│             │  └─────────────────────────┘└──────────────────────┘   │
 └────────────┴─────────────────────────────────────────────────────────┘
 ```
+
+**Combined Operational View:** dashboard di atas menyatukan **KPI produksi** (OB/Coal/SR/Fuel — native) dengan **KPI procurement/material** (Budget/GRPO/NPI/CAPEX — dari ARK-GS via API). Empat kartu procurement baru muncul berdampingan dengan kartu produksi, semuanya difilter oleh **site selector** (`project_code`), bulan, dan tahun. Indikator **"last synced"** menampilkan kesegaran data sesuai jadwal sync ARK-GS (2x/hari, §9.7). Warna kartu mengikuti threshold masing-masing KPI (GRPO ≥80% hijau; NPI ≤1.0 hijau).
 
 **Site selector sebagai first-class citizen:** dropdown site di navbar (022C, 021C, 017C, 011C, dst.) muncul di semua halaman utama, bukan hanya dashboard. Memilih site akan memfilter seluruh data (dashboard, entry, report, equipment assignment) ke site tersebut. User dengan akses multi-site bisa berpindah site tanpa logout ulang; daftar site yang muncul disesuaikan dengan hak akses (role) masing-masing user.
 
@@ -579,6 +723,7 @@ flowchart LR
 | Testing | Pest / PHPUnit + factories |
 | Audit log | `owen-it/laravel-auditing` (jejak perubahan data operasional) |
 | **Integrasi arkfleet-next (API)** | ARKA MineOps mengonsumsi **REST API** dari arkfleet-next (Laravel HTTP Client + cache Redis) untuk data master equipment — bukan shared database. Lihat §2.4 & §7.3.1. |
+| **Integrasi ARK-GS (API)** | ARKA MineOps mengonsumsi **REST API** dari ARK-GS (Laravel HTTP Client + cache Redis, pola sama seperti arkfleet-next) untuk KPI procurement/material (PO Sent, GRPO, NPI, Budget) — bukan sync SAP sendiri. Lihat §2.5 & §7.3.2. |
 
 ### 7.2 Frontend — Inertia + React + Ant Design
 
@@ -616,6 +761,22 @@ ARKA MineOps mengambil data master equipment dari arkfleet-next murni via **REST
 - Data equipment yang diambil dari API bersifat **read-only** di sisi MineOps — fleet lifecycle (tambah unit, ubah status, dsb.) tetap jadi tanggung jawab arkfleet-next.
 - MineOps menyimpan **cached fields** (`equipment_id`, `unit_code`, `description`, `plant_type`) di tabel lokal (`fuel_records`, `equipment_deployments`) untuk menghindari API call berulang saat render dashboard/report — lihat §3.1 & §9.6.
 - Kredensial/token API sebaiknya dibuat dengan scope terbatas (read-only pada endpoint equipment) agar MineOps tidak bisa mengubah data fleet.
+
+#### 7.3.2 Integrasi API dengan ARK-GS (Procurement & Material KPI)
+
+ARKA MineOps mengambil KPI procurement/material dari **ARK-GS** murni via **REST API** (lihat §2.5) — bukan sync SAP B1 sendiri, dan bukan shared database. Pola teknisnya **identik** dengan integrasi arkfleet-next (§7.3.1) agar konsisten dan mudah dirawat.
+
+| Kebutuhan | Package / Approach |
+|-----------|---------------------|
+| HTTP Client | Laravel HTTP Client (`Illuminate\Support\Facades\Http`) via service `ProcurementApiService` — memanggil endpoint KPI ARK-GS (§9.7) |
+| Caching | Redis — cache hasil per (`project_code`, `year`, `month`), **TTL ~6 jam** selaras jadwal sync ARK-GS (2x/hari 06:05 & 12:05 WITA) |
+| Resiliency | `Http::retry(3, 100)` + `try/catch` → fallback ke cache terakhir (*graceful degradation*) + tampilkan warning & "last synced" timestamp (§9.7) |
+| Auth antar-app | Token API (Sanctum PAT atau API key service-to-service), header `Authorization: Bearer` — scope read-only |
+| Endpoint yang perlu di-*expose* ARK-GS | `GET /api/kpi/po-sent`, `GET /api/kpi/grpo`, `GET /api/kpi/npi`, `GET /api/kpi/budget` — semua menerima filter `project_code`, `year`, `month` |
+
+- KPI procurement bersifat **read-only** di MineOps — sync & normalisasi SAP B1 tetap sepenuhnya tanggung jawab ARK-GS.
+- Semua endpoint memakai `project_code` sebagai kunci join lintas sistem (konsisten dengan `sites.code` MineOps & `project_code` arkfleet-next), memungkinkan **Combined Operational View** (§4, §6).
+- Respons API menyertakan `last_synced_at` agar MineOps bisa menampilkan kesegaran data ke user (§9.7).
 
 ### 7.4 Real-time & Offline
 
@@ -675,6 +836,11 @@ ARKA MineOps mengambil data master equipment dari arkfleet-next murni via **REST
 - Excel Import pipeline (DPR/Info/Fuel) dengan preview & validasi → **kunci migrasi data historis**.
 - **Deliverable:** plan tracking + migrasi file lama.
 
+### Fase 4B — Integrasi Procurement KPI (ARK-GS) (1.5 minggu)
+- **Sisi ARK-GS:** kembangkan endpoint REST API baru: `GET /api/kpi/po-sent`, `GET /api/kpi/grpo`, `GET /api/kpi/npi`, `GET /api/kpi/budget` (filter `project_code`, `year`, `month`, sertakan `last_synced_at`) — konsisten dengan API controller ARK-GS yang sudah ada.
+- **Sisi MineOps:** `ProcurementApiService` (Laravel HTTP Client + Redis cache TTL ~6 jam + fallback graceful degradation), Modul **MO-Procurement** (kartu Budget/GRPO/NPI/CAPEX), dan **Combined Operational View** (produksi + procurement, join via `project_code`).
+- **Deliverable:** dashboard MineOps menampilkan KPI procurement/material dari SAP B1 (via ARK-GS) berdampingan dengan KPI produksi, lengkap dengan indikator "last synced".
+
 ### Fase 5 — Mobile/PWA & Offline (1.5 minggu)
 - Responsive polish + PWA + offline draft & sync.
 - **Deliverable:** supervisor input dari HP di site meski sinyal jelek.
@@ -690,7 +856,7 @@ ARKA MineOps mengambil data master equipment dari arkfleet-next murni via **REST
 - Import data historis batch, training user, cutover dari email.
 - **Deliverable:** go-live.
 
-**Total estimasi:** ± **12–13 minggu** (± 3 bulan) untuk versi lengkap. **MVP** (Fase 0–3) bisa dikejar dalam **±6–7 minggu**.
+**Total estimasi:** ± **13–15 minggu** (± 3–3,5 bulan) untuk versi lengkap (termasuk Fase 4B integrasi procurement ARK-GS). **MVP** (Fase 0–3) bisa dikejar dalam **±6–7 minggu**. Fase 4B bisa berjalan paralel dengan Fase 5 bila resource memungkinkan (dependensinya hanya endpoint API ARK-GS, bukan fitur produksi inti).
 
 ```mermaid
 gantt
@@ -705,7 +871,8 @@ gantt
     F3 Dashboard & Report     :f3, after f2, 10d
     section Extended
     F4 Plan & Excel Import    :f4, after f3, 10d
-    F5 Mobile/PWA & Offline   :f5, after f4, 8d
+    F4B Procurement (ARK-GS)  :f4b, after f4, 8d
+    F5 Mobile/PWA & Offline   :f5, after f4b, 8d
     F6 Notif & AI             :f6, after f5, 8d
     F7 UAT & Rollout          :f7, after f6, 5d
 ```
@@ -841,6 +1008,38 @@ Alur saat user memilih equipment di MineOps (Equipment Assignment maupun form en
 - **Fleet lifecycle** (akuisisi, penjualan, scrap) tetap sepenuhnya dikelola tim fleet di arkfleet-next — MineOps tidak perlu tahu/terlibat proses ini, cukup filter equipment yang `is_active`/`unitstatus = ACTIVE` saat assignment.
 - **Skala multi-site** — pendekatan API + cache yang sama berlaku untuk semua site (022C, 021C, 017C, 011C, dst.), tidak perlu integrasi khusus per site.
 
+### 9.7 Integrasi Procurement via REST API (ARK-GS)
+
+**Prinsip: sama seperti integrasi equipment (§9.6) — single source of truth untuk data SAP B1 ada di ARK-GS, MineOps hanya mengonsumsi KPI via REST API + cache, tanpa shared database dan tanpa menduplikasi sync SAP.**
+
+#### 9.7.1 Endpoint yang Perlu Disediakan ARK-GS
+
+| Endpoint | Deskripsi |
+|----------|-----------|
+| `GET /api/kpi/po-sent` | PO Sent per project (agregat `item_amount`) + budget periode → % budget terserap. Filter `project_code`, `year`, `month`. |
+| `GET /api/kpi/grpo` | GRPO vs PO Sent per project → % completion + status (Good/Attention/Critical). Filter `project_code`, `year`, `month`. |
+| `GET /api/kpi/npi` | Incoming vs Outgoing per project → NPI index. Filter `project_code`, `year`, `month`. |
+| `GET /api/kpi/budget` | Budget (regular + CAPEX) vs actual per project. Filter `project_code`, `year`, `month`. |
+
+Semua respons menyertakan `last_synced_at` (waktu sync SAP B1 terakhir oleh ARK-GS).
+
+#### 9.7.2 Data Freshness — Bergantung Jadwal Sync ARK-GS
+
+- ARK-GS men-sync SAP B1 **dua kali sehari (06:05 & 12:05 WITA)**. Artinya KPI procurement **tidak real-time** seperti data produksi — paling segar sekitar jadwal sync tersebut.
+- TTL cache Redis di MineOps di-set **selaras** (mis. ~6 jam) agar tidak memanggil ARK-GS berlebihan tapi tetap menangkap hasil sync terbaru.
+- **Selalu tampilkan timestamp "last synced"** di setiap kartu/halaman procurement (§6) agar user paham kesegaran data dan tidak salah menafsirkan angka lama sebagai real-time.
+
+#### 9.7.3 Fallback — Graceful Degradation
+
+- Jika ARK-GS API **down atau timeout**, MineOps **tidak boleh gagal total**: tampilkan data cache terakhir (walau lewat TTL) + warning (mis. "Data procurement mungkin tidak terkini, koneksi ke ARK-GS terganggu — last synced: …").
+- KPI produksi (native) tetap tampil normal meski procurement gagal di-fetch — dashboard degradasi sebagian, bukan seluruhnya.
+- Implementasi teknis: `Http::retry(3, 100)` + `try/catch` di `ProcurementApiService`, fallback ke `Cache::get()` tanpa melempar exception ke user (sama seperti pola §9.6.4).
+
+#### 9.7.4 Konsistensi Kunci `project_code`
+
+- `project_code` di ARK-GS (`017C`, `021C`, `022C`, `025C`, `026C`, `APS`, `023C`) harus dipetakan ke `sites.code` MineOps. Kode yang sama persis (mis. `022C`) langsung join; kode yang hanya ada di salah satu sistem ditandai agar tidak "hilang" di combined view.
+- Rekomendasi: buat tabel/konfigurasi pemetaan `project_code ↔ site_id` bila ada perbedaan penamaan, agar Combined Operational View akurat lintas produksi + procurement.
+
 ---
 
 ## Ringkasan Eksekutif
@@ -848,6 +1047,8 @@ Alur saat user memilih equipment di MineOps (Equipment Assignment maupun form en
 **ARKA MineOps** mengubah 3 laporan Excel terpisah (DPR, Daily Info Site, Fuel Report) yang dikirim manual via email menjadi **satu dashboard terintegrasi real-time**, dirancang **enterprise-wide untuk seluruh site PT. Arkananta** (022C GPK, 021C SBI, 017C KPUC, 011C Kitadin, dan site lain) — bukan hanya satu site tunggal. Kuncinya: menyatukan ketiga laporan pada poros **waktu (tanggal+shift)** dan **aset (equipment+PIT)**, dengan **Calculation Engine terpusat** yang menjamin angka MTD/YTD/SR/FCR/Achievement selalu konsisten di semua site, dan **site selection sebagai first-class citizen** di UI (site selector di navbar/dashboard).
 
 Penting: ARKA MineOps **tidak membangun ulang master data equipment**. Aplikasi ini memanfaatkan registry equipment yang sudah ada di **arkfleet-next** (± 1.000 unit lintas site, kode unit persis sama dengan Excel lama, termasuk HM/KM readings) melalui **REST API** — bukan shared database, agar kedua aplikasi tetap *decoupled*, bisa di-*deploy* & di-*scale* independen, tanpa *coupling* skema. MineOps mereferensikan `equipment_id` dan menyimpan *cached copy* field yang sering diakses (dengan caching layer Redis, TTL 1 jam, plus fallback *graceful degradation*) untuk performa, sambil menjaga single source of truth untuk data alat berat tetap di arkfleet-next.
+
+Sama pentingnya: ARKA MineOps **tidak menduplikasi sync SAP B1**. KPI **procurement & material** — **PO Sent vs Budget, GRPO completion, NPI efficiency, dan Budget/CAPEX vs actual** — sudah di-sync dari SAP B1 (2x/hari) oleh aplikasi existing **ARK-GS**, dan MineOps **mengonsumsinya via REST API** dengan pola yang sama (HTTP Client + Redis cache + fallback + indikator "last synced"). Hasilnya, MineOps menjadi **unified dashboard tiga sistem**: data **produksi** (native) + **equipment** (arkfleet-next) + **procurement/material** (ARK-GS ← SAP B1), disatukan lewat kunci `project_code`/site — sehingga manajemen bisa melihat KPI operasional dan pengadaan dalam **satu layar (Combined Operational View)**.
 
 Pendekatan implementasi: **MVP 6-7 minggu** (master data multi-site + entry + dashboard), lalu extend ke plan tracking, Excel import (migrasi), PWA offline, dan notifikasi/AI. Testing dilakukan di beberapa site untuk memvalidasi desain multi-site. Migrasi dilakukan **paralel (dual-run)** agar transisi dari kebiasaan email berjalan mulus.
 
