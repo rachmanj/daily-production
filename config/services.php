@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'arkfleet' => [
+        'base_url' => env('ARKFLEET_BASE_URL', 'http://localhost:8001/api'),
+        'token' => env('ARKFLEET_TOKEN'),
+    ],
+
+    'arkgs' => [
+        'base_url' => env('ARKGS_BASE_URL', 'http://localhost:8002/api'),
+        'token' => env('ARKGS_TOKEN'),
+    ],
+
 ];
