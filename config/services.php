@@ -45,4 +45,14 @@ return [
         'token' => env('ARKGS_TOKEN'),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
+    'openrouter' => [
+        'api_key' => env('OPENROUTER_API_KEY'),
+        'model' => env('OPENROUTER_MODEL', 'openai/gpt-4o-mini'),
+    ],
+
 ];

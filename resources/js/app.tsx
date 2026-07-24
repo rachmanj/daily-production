@@ -3,11 +3,26 @@ import './bootstrap';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider } from 'antd';
 import idID from 'antd/locale/id_ID';
 import { createRoot } from 'react-dom/client';
+import { registerSW } from 'virtual:pwa-register';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ARKA MineOps';
+
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 30_000,
+            retry: 1,
+        },
+    },
+});
+
+if ('serviceWorker' in navigator) {
+    registerSW({ immediate: true });
+}
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -24,19 +39,21 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(
-            <ConfigProvider
-                locale={idID}
-                theme={{
-                    token: {
-                        colorPrimary: '#1677ff',
-                        borderRadius: 6,
-                        fontFamily:
-                            'Instrument Sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    },
-                }}
-            >
-                <App {...props} />
-            </ConfigProvider>,
+            <QueryClientProvider client={queryClient}>
+                <ConfigProvider
+                    locale={idID}
+                    theme={{
+                        token: {
+                            colorPrimary: '#1677ff',
+                            borderRadius: 6,
+                            fontFamily:
+                                'Instrument Sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        },
+                    }}
+                >
+                    <App {...props} />
+                </ConfigProvider>
+            </QueryClientProvider>,
         );
     },
     progress: {

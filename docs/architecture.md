@@ -1,87 +1,71 @@
-Purpose: Technical reference for understanding system design and development patterns
-Last Updated: [Auto-updated by AI]
+# System Architecture — ARKA MineOps
 
-## Architecture Documentation Guidelines
-
-### Document Purpose
-
-This document describes the CURRENT WORKING STATE of the application architecture. It serves as:
-
-- Technical reference for understanding how the system currently works
-- Onboarding guide for new developers
-- Design pattern documentation for consistent development
-- Schema and data flow documentation reflecting actual implementation
-
-### What TO Include
-
-- **Current Technology Stack**: Technologies actually in use
-- **Working Components**: Components that are implemented and functional
-- **Actual Database Schema**: Tables, fields, and relationships as they exist
-- **Implemented Data Flows**: How data actually moves through the system
-- **Working API Endpoints**: Routes that are active and functional
-- **Deployment Patterns**: How the system is actually deployed
-- **Security Measures**: Security implementations that are active
-
-### What NOT to Include
-
-- **Issues or Bugs**: These belong in `MEMORY.md` with technical debt entries
-- **Limitations or Problems**: Document what IS working, not what isn't
-- **Future Plans**: Enhancement ideas belong in `backlog.md`
-- **Deprecated Features**: Remove outdated information rather than marking as deprecated
-- **Wishlist Items**: Planned features that aren't implemented yet
-
-### Update Guidelines
-
-- **Reflect Reality**: Always document the actual current state, not intended state
-- **Schema Notes**: When database schema has unused fields, note them factually
-- **Cross-Reference**: Link to other docs when appropriate, but don't duplicate content
-
-### For AI Coding Agents
-
-- **Investigate Before Updating**: Use codebase search to verify current implementation
-- **Move Issues to Memory**: If you discover problems, document them in `MEMORY.md`
-- **Factual Documentation**: Describe what exists, not what should exist
-
----
-
-# System Architecture
+**Last Updated**: 2026-07-24
 
 ## Project Overview
 
-[Brief description of what this system does]
+Integrated mining operations dashboard for PT. Arkananta. Unifies daily production (DPR), fuel, equipment deployment, and site info into a real-time web application with procurement KPIs from ARK-GS.
 
 ## Technology Stack
 
-- **Frontend**: [Framework and key libraries]
-- **Backend**: [Framework, database, key services]
-- **Infrastructure**: [Deployment, monitoring, external services]
+- **Frontend**: React 18 + TypeScript + Inertia.js v2 + Ant Design 5 + @ant-design/charts + @tanstack/react-query + vite-plugin-pwa
+- **Backend**: Laravel 13 + PHP 8.5 + MySQL 8 + Redis + Horizon
+- **Auth**: Laravel Breeze + Spatie Permission + Sanctum (SPA stateful API)
+- **Integrations**: arkfleet-next (equipment API), ARK-GS (procurement API)
 
-## Core Components
+## Core Modules
 
-[Describe your main system components]
+| Module | Routes | Status |
+|--------|--------|--------|
+| Master Data | `/sites`, `/pits`, `/shifts`, `/fuel-types`, `/equipment-assignments` | ✅ |
+| Daily Entry | `/daily-entries`, `/excel-imports` | ✅ |
+| Dashboard | `/dashboard`, `/api/dashboard/*` | ✅ |
+| Reports | `/reports` | ✅ |
+| Plan vs Actual | `/monthly-plans`, `/variance` | ✅ |
+| Procurement | `/procurement`, `/api/procurement/*` | ✅ |
+| Notifications | `/notifications` + scheduled commands | ✅ |
+| PWA/Offline | IndexedDB + `/api/sync/*` | ✅ |
 
-## Database Schema
+## Services
 
-[Current tables and relationships]
+- **CalculationService** — MTD/YTD/PTD, SR, FCR, Achievement %; Redis cache with invalidation on approve
+- **DailyEntryService** — CRUD orchestration, UUID idempotency, workflow
+- **DashboardService** — KPI/trend/utilization aggregation
+- **PlanService** — Monthly plans, variance, loss contribution
+- **ProcurementApiService** — ARK-GS HTTP client, 6h Redis cache, mock fallback
+- **ReportService** — PDF (dompdf) + Excel exports
+- **EquipmentApiService** — arkfleet-next with local fallback
+- **AnomalyDetectionService** — FCR outlier detection (2σ)
+- **AiInsightService** — OpenRouter optional narrative
 
-## API Design
+## Database (20 tables)
 
-[Key endpoints and data flows]
+Core: `sites`, `pits`, `shifts`, `daily_entries`, `production_records`, `fuel_records`, `equipment_deployments`, `site_info`, `monthly_plans`, `plan_targets`, `equipment_assignments`, `project_site_mappings`, `import_batches`, `notifications`
 
-## Data Flow
+## API Endpoints
 
-```mermaid
-graph TD
-    A[User Input] --> B[Validation]
-    B --> C[Processing]
-    C --> D[Database]
-    D --> E[Response]
-
-## Security Implementation
-
-[Current security measures]
-
-## Deployment
-
-[How the system is deployed]
 ```
+GET  /api/dashboard/kpi|trend|utilization|per-pit|drilldown|fuel-by-equipment
+GET  /api/procurement/po-sent|grpo|npi|budget|all-projects
+POST /api/sync/daily-entries
+GET  /api/sync/status
+GET  /api/variance/data
+```
+
+## Workflow
+
+```
+draft → submit → approve
+```
+
+Child records (production/fuel/deployment/site-info) saved via PUT per tab. Calculation cache invalidated on approve.
+
+## Scheduled Commands
+
+- `07:00 WITA` — `mineops:send-daily-summary`
+- `20:00 WITA` — `mineops:send-entry-reminder`
+- Hourly :30 (07–18) — `mineops:check-achievement`, `mineops:check-fuel-anomaly`
+
+## PWA
+
+vite-plugin-pwa with `registerType: autoUpdate`. IndexedDB stores (`draftEntries`, `syncQueue`) via `idb`. Idempotent sync by UUID.

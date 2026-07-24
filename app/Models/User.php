@@ -35,4 +35,9 @@ class User extends Authenticatable implements Auditable
     {
         return $this->belongsToMany(Site::class);
     }
+
+    public function routeNotificationForTelegram(): ?string
+    {
+        return config('services.telegram.chat_id');
+    }
 }

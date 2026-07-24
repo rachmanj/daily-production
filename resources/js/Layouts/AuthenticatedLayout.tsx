@@ -1,3 +1,7 @@
+import NotificationBell from '@/Components/NotificationBell';
+import OfflineIndicator from '@/Components/offline/OfflineIndicator';
+import SyncButton from '@/Components/offline/SyncButton';
+import SiteSelector from '@/Components/SiteSelector';
 import {
     AimOutlined,
     DashboardOutlined,
@@ -15,7 +19,6 @@ import { Link, router, usePage } from '@inertiajs/react';
 import type { MenuProps } from 'antd';
 import { Avatar, Dropdown, Layout, Menu, Space, Typography, message } from 'antd';
 import { PropsWithChildren, ReactNode, useEffect, useMemo } from 'react';
-import SiteSelector from '@/Components/SiteSelector';
 import { PageProps } from '@/types';
 
 const { Header, Sider, Content } = Layout;
@@ -53,37 +56,52 @@ export default function AuthenticatedLayout({
             {
                 key: 'data-entry',
                 icon: <FormOutlined />,
-                label: 'Data Entry',
+                label: <Link href={route('daily-entries.index')}>Daily Entry</Link>,
             },
             {
                 key: 'produksi',
                 icon: <LineChartOutlined />,
-                label: 'Produksi',
+                label: <Link href={route('dashboard')}>Produksi</Link>,
             },
             {
                 key: 'fuel',
                 icon: <FireOutlined />,
-                label: 'Fuel',
+                label: <Link href={route('dashboard.fuel')}>Fuel</Link>,
             },
             {
                 key: 'equipment',
                 icon: <ToolOutlined />,
-                label: 'Equipment',
+                label: <Link href={route('equipment-assignments.index')}>Equipment</Link>,
             },
             {
                 key: 'plan',
                 icon: <AimOutlined />,
                 label: 'Plan',
+                children: [
+                    {
+                        key: 'monthly-plans',
+                        label: <Link href={route('monthly-plans.index')}>Monthly Plan</Link>,
+                    },
+                    {
+                        key: 'variance',
+                        label: <Link href={route('variance.index')}>Variance</Link>,
+                    },
+                ],
             },
             {
                 key: 'procurement',
                 icon: <ShoppingCartOutlined />,
-                label: 'Procurement',
+                label: <Link href={route('procurement.index')}>Procurement</Link>,
             },
             {
                 key: 'reports',
                 icon: <FileTextOutlined />,
-                label: 'Reports',
+                label: <Link href={route('reports.index')}>Reports</Link>,
+            },
+            {
+                key: 'notifications',
+                icon: <FormOutlined />,
+                label: <Link href={route('notifications.index')}>Notifikasi</Link>,
             },
             {
                 key: 'master',
@@ -167,6 +185,7 @@ export default function AuthenticatedLayout({
                 <Menu theme="dark" mode="inline" defaultSelectedKeys={['dashboard']} items={menuItems} />
             </Sider>
             <Layout>
+                <OfflineIndicator />
                 <Header
                     style={{
                         background: '#fff',
@@ -180,7 +199,9 @@ export default function AuthenticatedLayout({
                         {title ?? (typeof header === 'string' ? header : 'Dashboard')}
                     </Text>
                     <Space size="middle">
+                        <SyncButton />
                         <SiteSelector />
+                        <NotificationBell />
                         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
                             <Space style={{ cursor: 'pointer' }}>
                                 <Avatar icon={<UserOutlined />} />
