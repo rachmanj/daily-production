@@ -13,8 +13,9 @@ import {
 } from '@ant-design/icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import type { MenuProps } from 'antd';
-import { Avatar, Dropdown, Layout, Menu, Select, Space, Typography } from 'antd';
-import { PropsWithChildren, ReactNode, useMemo } from 'react';
+import { Avatar, Dropdown, Layout, Menu, Space, Typography, message } from 'antd';
+import { PropsWithChildren, ReactNode, useEffect, useMemo } from 'react';
+import SiteSelector from '@/Components/SiteSelector';
 import { PageProps } from '@/types';
 
 const { Header, Sider, Content } = Layout;
@@ -30,8 +31,17 @@ export default function AuthenticatedLayout({
     title,
     header,
 }: AuthenticatedLayoutProps) {
-    const { auth, sites, activeSite } = usePage<PageProps>().props;
+    const { auth, flash } = usePage<PageProps>().props;
     const user = auth.user;
+
+    useEffect(() => {
+        if (flash?.success) {
+            message.success(flash.success);
+        }
+        if (flash?.error) {
+            message.error(flash.error);
+        }
+    }, [flash]);
 
     const menuItems: MenuProps['items'] = useMemo(
         () => [
@@ -80,11 +90,42 @@ export default function AuthenticatedLayout({
                 icon: <SettingOutlined />,
                 label: 'Master Data',
                 children: [
-                    { key: 'master-sites', label: 'Sites & PITs' },
-                    { key: 'master-shifts', label: 'Shifts' },
-                    { key: 'master-fuel', label: 'Fuel Types/Prices' },
-                    { key: 'master-users', label: 'Users & Roles' },
-                    { key: 'master-equipment', label: 'Equipment Assignment' },
+                    {
+                        key: 'master-sites',
+                        label: <Link href={route('sites.index')}>Sites & PITs</Link>,
+                    },
+                    {
+                        key: 'master-pits',
+                        label: <Link href={route('pits.index')}>PITs</Link>,
+                    },
+                    {
+                        key: 'master-shifts',
+                        label: <Link href={route('shifts.index')}>Shifts</Link>,
+                    },
+                    {
+                        key: 'master-fuel-types',
+                        label: <Link href={route('fuel-types.index')}>Jenis BBM</Link>,
+                    },
+                    {
+                        key: 'master-fuel-prices',
+                        label: <Link href={route('fuel-prices.index')}>Harga BBM</Link>,
+                    },
+                    {
+                        key: 'master-users',
+                        label: <Link href={route('users.index')}>Pengguna</Link>,
+                    },
+                    {
+                        key: 'master-roles',
+                        label: <Link href={route('roles.index')}>Roles</Link>,
+                    },
+                    {
+                        key: 'master-equipment',
+                        label: (
+                            <Link href={route('equipment-assignments.index')}>
+                                Equipment Assignment
+                            </Link>
+                        ),
+                    },
                 ],
             },
         ],
@@ -107,14 +148,6 @@ export default function AuthenticatedLayout({
         },
     ];
 
-    const handleSiteChange = (siteId: number) => {
-        router.post(
-            route('active-site.update'),
-            { site_id: siteId },
-            { preserveScroll: true },
-        );
-    };
-
     return (
         <Layout style={{ minHeight: '100vh' }}>
             <Sider breakpoint="lg" collapsedWidth="0" theme="dark">
@@ -131,12 +164,7 @@ export default function AuthenticatedLayout({
                 >
                     ARKA MineOps
                 </div>
-                <Menu
-                    theme="dark"
-                    mode="inline"
-                    defaultSelectedKeys={['dashboard']}
-                    items={menuItems}
-                />
+                <Menu theme="dark" mode="inline" defaultSelectedKeys={['dashboard']} items={menuItems} />
             </Sider>
             <Layout>
                 <Header
@@ -152,15 +180,7 @@ export default function AuthenticatedLayout({
                         {title ?? (typeof header === 'string' ? header : 'Dashboard')}
                     </Text>
                     <Space size="middle">
-                        <Select
-                            value={activeSite?.id}
-                            onChange={handleSiteChange}
-                            style={{ minWidth: 220 }}
-                            options={sites.map((site) => ({
-                                value: site.id,
-                                label: `${site.code} — ${site.name}`,
-                            }))}
-                        />
+                        <SiteSelector />
                         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
                             <Space style={{ cursor: 'pointer' }}>
                                 <Avatar icon={<UserOutlined />} />
@@ -169,9 +189,7 @@ export default function AuthenticatedLayout({
                         </Dropdown>
                     </Space>
                 </Header>
-                <Content style={{ margin: 24 }}>
-                    {children}
-                </Content>
+                <Content style={{ margin: 24 }}>{children}</Content>
             </Layout>
         </Layout>
     );

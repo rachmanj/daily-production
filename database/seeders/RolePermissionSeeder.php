@@ -15,18 +15,13 @@ class RolePermissionSeeder extends Seeder
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $permissions = [
-            'view dashboard',
-            'create daily-entry',
-            'view production',
-            'view fuel',
-            'create fuel-record',
-            'manage fuel-receipt',
-            'view equipment',
-            'view reports',
-            'view plan',
-            'manage sites',
-            'manage users',
-            'manage roles',
+            'master.manage',
+            'equipment.assign',
+            'entry.create',
+            'entry.approve',
+            'dashboard.view',
+            'plan.manage',
+            'report.generate',
         ];
 
         foreach ($permissions as $permission) {
@@ -38,24 +33,23 @@ class RolePermissionSeeder extends Seeder
 
         $supervisor = Role::firstOrCreate(['name' => UserRole::Supervisor->value]);
         $supervisor->syncPermissions([
-            'create daily-entry',
-            'view production',
-            'view fuel',
-            'view equipment',
+            'entry.create',
+            'entry.approve',
+            'dashboard.view',
+            'report.generate',
         ]);
 
         $management = Role::firstOrCreate(['name' => UserRole::Management->value]);
         $management->syncPermissions([
-            'view dashboard',
-            'view reports',
-            'view plan',
+            'dashboard.view',
+            'plan.manage',
+            'report.generate',
         ]);
 
         $fuelOfficer = Role::firstOrCreate(['name' => UserRole::FuelOfficer->value]);
         $fuelOfficer->syncPermissions([
-            'create fuel-record',
-            'view fuel',
-            'manage fuel-receipt',
+            'entry.create',
+            'dashboard.view',
         ]);
     }
 }

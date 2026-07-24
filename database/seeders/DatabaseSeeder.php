@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             FuelTypeSeeder::class,
             FuelPriceSeeder::class,
             ProjectSiteMappingSeeder::class,
+            EquipmentAssignmentSeeder::class,
         ]);
     }
 }

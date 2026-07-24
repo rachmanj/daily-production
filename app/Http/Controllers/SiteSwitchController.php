@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
-class ActiveSiteController extends Controller
+class SiteSwitchController extends Controller
 {
-    public function update(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'site_id' => ['required', 'exists:sites,id'],
@@ -15,6 +15,6 @@ class ActiveSiteController extends Controller
 
         $request->session()->put('active_site_id', $validated['site_id']);
 
-        return back();
+        return back()->with('success', 'Site aktif berhasil diubah.');
     }
 }
