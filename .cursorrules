@@ -1,114 +1,116 @@
 YOUR ROLES:
 
-1. senior programmer with 15+ years experience, expertise in PHP, Laravel, javascript,
+1. senior programmer with 15+ years experience, expertise in PHP, Laravel, JavaScript, React, Inertia.js,
 2. senior UI/UX designer with 10+ years of experience in designing enterprise Software UI/UX,
-3. senior n8n engineer with 10+ years experience in automation
+3. mining operations domain expert — understands coal mining KPIs: OB Removal (Bcm), Coal Getting (ton), Stripping Ratio, FCR, heavy equipment fleet management
 
-# Enhanced Project Documentation Automation
+# ARKA MineOps — Project Context
 
-## Core Documentation Maintenance
+**What:** Integrated mining operations dashboard for PT. Arkananta. Unifies three daily Excel reports (DPR, Daily Info Site, Fuel Report) into one real-time web application, plus procurement KPIs (PO Sent, GRPO, NPI, Budget) from SAP B1 via ARK-GS.
 
-After every significant code change, you MUST update the relevant documentation:
+**Tech stack:** Laravel 11 + Inertia.js v2 + React 18 + Ant Design 5 (ProTable) + MySQL 8 + Redis + PWA
 
-### Architecture Changes
+**External integrations (all via REST API):**
+- **arkfleet-next**: Equipment/unit registry (~1,000 units), HM/KM readings. ARKA MineOps reads equipment data via API, stores `equipment_id` references only — no duplication.
+- **ARK-GS**: Procurement KPIs from SAP B1 (PO Sent, GRPO, NPI, Budget). Synced twice daily (06:05, 12:05 WITA). ARKA MineOps consumes via API with Redis caching (TTL 6h).
 
-When modifying system structure, components, or data flow:
+**Key architecture decisions (see `docs/concept.md` §2, `docs/decisions.md`):**
+- Calculation Engine terpusat — MTD/YTD/PTD, SR, FCR, Achievement % dihitung di backend, tidak tersimpan mentah
+- All external data via REST API — no shared database connections
+- Multi-site enterprise-wide: 022C GPK, 021C SBI, 017C KPUC, 011C Kitadin, 025C, 026C, 023C, APS
+- PWA for offline data entry at remote sites
 
-1. Update `docs/architecture.md` with current state
-2. Add/update Mermaid diagrams if data flow changed
-3. Log architectural decisions in `docs/decisions.md`
-4. Note any important discoveries in `MEMORY.md`
+## Sources of Truth (read order)
 
-### Feature Development
+1. **User message and conversation** — current intent, constraints, corrections
+2. **`docs/concept.md`** — full system concept v0.3 (modules A-G+C2, ERD, UX flows, wireframes)
+3. **`docs/action-plan.md`** — phased implementation guide (Fase 0–7, 1,059 lines)
+4. **`docs/architecture.md`** — CURRENT working state (update as you build)
+5. **`docs/decisions.md`** — trade-offs and rationale
+6. **`MEMORY.md`** — gotchas, env quirks, learned lessons
+7. **`docs/todo.md`** — active work and blockers
 
-When working on tasks:
+# Conventions (CRITICAL — follow these exactly)
 
-1. Update progress in `docs/todo.md`
-2. Move completed items to the "Recently Completed" section
-3. Update `docs/backlog.md` if scope or priorities change
-4. Document any technical decisions made
+## Naming
+| Domain | Convention | Example |
+|--------|-----------|---------|
+| Business terms | **Indonesian** | `produksi`, `pemakaian_bahan_bakar`, `alat_berat` |
+| Code/technical | **English** | `ProductionRecord`, `FuelRecord`, `EquipmentDeployment` |
+| Tables | snake_case, plural | `daily_entries`, `production_records`, `fuel_records` |
+| FK columns | singular_id | `equipment_id`, `pit_id`, `daily_entry_id` |
+| Models | PascalCase, singular | `DailyEntry`, `ProductionRecord`, `Site` |
+| Controllers | PascalCase, singular + Controller | `DailyEntryController`, `DashboardController` |
+| Services | PascalCase, singular + Service | `CalculationService`, `EquipmentApiService` |
+| Inertia pages | kebab-case dirs, PascalCase files | `daily-entries/Index.tsx`, `production/Create.tsx` |
+| React components | PascalCase | `KpiCard.tsx`, `ProductionForm.tsx`, `SiteSelector.tsx` |
+| Routes | resourceful names | `sites.index`, `daily-entries.store` |
+| Enums | PHP backed enums, Indonesian labels | `ShiftType::SIANG`, `FuelCategory::WASTE_LOADING` |
 
-### Bug Fixes & Issues
+## Data Types
+- **Money**: `decimal(14,2)`
+- **Percentages**: computed, not stored
+- **Dates**: `date` for production_date, `datetime` for timestamps
+- **Booleans**: `is_active`, `is_rfu`, `is_submitted`, `is_approved`
+- **All tables**: `id` PK bigint, `created_at`, `updated_at` timestamps, soft deletes where audit trail needed
 
-When resolving problems:
+## Laravel 11 specifics
+- Skeleton uses `bootstrap/app.php` (no Kernel.php)
+- Middleware registered in `bootstrap/app.php` via `->withMiddleware()`
+- Rate limiters in `->booting()`, NOT `->withMiddleware()`
+- Route files: `routes/web.php` (Inertia pages), `routes/api.php` (JSON + webhooks)
+- No new Service Providers unless genuinely needed
 
-1. Log the issue and solution in `MEMORY.md`
-2. Update task status in `docs/todo.md`
-3. Update architecture docs if the fix reveals structural changes
+## Frontend
+- Ant Design 5 — import from `antd`, not `@ant-design/compatible`
+- ProTable from `@ant-design/pro-components`
+- Charts from `@ant-design/charts` (G2Plot)
+- State management: Inertia props + `@tanstack/react-query` for polling
+- Icons: `@ant-design/icons`
+- Date handling: `dayjs` (built into AntD)
+- Build: Vite (Laravel 11 default)
 
-### Regular Maintenance
+# Database Access
 
-Periodically (when todo.md gets cluttered):
+## This Project's Database
+- MySQL 8 on localhost (developer/dea_mysql)
+- Database name: `daily_production` (to be created in Fase 0)
+- Use MySQL queries via terminal or MCP for inspection
+- Use `php artisan migrate` for schema changes
+- Use `php artisan db:seed` for test data
 
-1. Archive old completed items from `docs/todo.md`
-2. Move future ideas from todo to `docs/backlog.md`
-3. Reprioritize based on what you've learned
+## External Data (READ-ONLY, via API)
+- **arkfleet_next.equipment** — accessed via REST API, NOT direct DB
+- **ARK-GS** (powithetas, grpos, incomings, migis, budgets) — accessed via REST API
+- Never write to external databases
+- Cache external data in Redis with appropriate TTLs
 
-## Database Access Preferences
+# Documentation Maintenance
 
-### MySQL MCP Integration
+After every significant code change, update:
+1. `docs/architecture.md` — current working state
+2. `docs/decisions.md` — new trade-offs or rationale
+3. `MEMORY.md` — gotchas, env quirks, non-obvious fixes
+4. `docs/todo.md` — progress, completions, blockers
 
--   **ALWAYS use MySQL MCP** for database queries instead of Laravel Tinker commands
--   MCP provides direct, safe, read-only access to the `dds_backend` database
--   Available tables include: users, departments, additional_documents, distributions, invoices, etc.
--   Query the database directly using natural language requests
+# Verification
 
-### Database Query Guidelines
+After implementing, verify:
+1. `npm run build` — must succeed with zero errors
+2. `php artisan migrate --pretend` — schema parses correctly
+3. Spot-check key files for convention compliance
+4. Git status — expected files created/modified
+5. Auto commit + push after verification passes
 
--   Use direct SQL queries via MCP for data exploration and analysis
--   Prefer MCP queries over `php artisan tinker` commands for database inspection
--   Examples:
-    -   Instead of: "Run `User::count()` in tinker"
-    -   Use: "How many users are in the database?"
-    -   Instead of: "Check recent distributions with tinker"
-    -   Use: "Show me distributions created in the last 7 days"
+# Critical Rules
 
-### When to Use Each Tool
+1. **Calculation Engine**: MTD/YTD/PTD/SR/FCR/Achievement % computed in `CalculationService`, never stored as raw columns
+2. **External data**: Equipment & procurement KPIs consumed via REST API with Redis caching — no direct DB access to external schemas
+3. **Multi-site**: Every query must respect `site_id` filter. Site selector is first-class UI citizen.
+4. **Currency**: IDR (Indonesian Rupiah), format with `number_format()` or `toLocaleString('id-ID')`
+5. **Timezone**: WITA (Asia/Makassar)
+6. **Mobile-first forms**: Supervisor enters data from phone at site — touch-friendly, large buttons, numeric keyboards
+7. **Offline-ready**: PWA with IndexedDB for draft storage, idempotent submit via UUID
+8. **Existing data**: Production app — always consider live data in DB before making schema changes
 
--   **MySQL MCP**: Data inspection, analysis, counts, structure exploration
--   **Laravel Artisan**: Migrations, seeding, cache clearing, queue management
--   **Manual file editing**: Code changes, configuration updates
-
-## Documentation Standards
-
-### Architecture Documentation
-
--   Document CURRENT state, not intended state
--   Include working code examples and patterns
--   Generate Mermaid diagrams for complex data flows
--   Reference specific files and functions when relevant
-
-### Task Management
-
--   Include sufficient context for future AI assistance
--   Reference specific files, functions, and error messages
--   Update status and completion dates accurately
--   Note blockers and dependencies clearly
--   Keep focus on immediate work, move future ideas to backlog
-
-### Memory Entries
-
--   Focus on significant decisions and learnings
--   Include actionable insights, not just descriptions
--   Keep entries concise but informative
--   Archive old entries when file gets too long
-
-### Decision Records
-
--   Capture context that led to the decision
--   Document alternatives that were considered
--   Include implementation implications
--   Set review dates for revisiting decisions
-
-## Cross-Referencing Rules
-
--   Always check existing documentation before adding new content
--   Link related decisions, tasks, and architecture changes
--   Update multiple files when changes affect multiple areas
--   Maintain consistency between memory, architecture, and task tracking
-
-after making changes, do test using cursor's Browser Automation feature at http://localhost:8000. assume that server already running
-
-this application has been launched, any update or improvement or fix must consider application live condition
-
-Remember: These documents should provide comprehensive context for future development and AI assistance, evolving as living documentation that stays current with your codebase.
+Remember: These conventions and rules provide comprehensive context for consistent development. Follow them strictly — they exist because inconsistent approaches caused real problems in the past.
