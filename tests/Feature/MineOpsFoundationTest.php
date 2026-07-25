@@ -19,7 +19,7 @@ test('admin can login and access dashboard', function () {
     $this->seed(DatabaseSeeder::class);
 
     $response = $this->post('/login', [
-        'email' => 'admin@mineops.test',
+        'login' => 'admin@mineops.test',
         'password' => 'password',
     ]);
 
