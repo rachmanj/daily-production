@@ -14,6 +14,13 @@ class StoreUserRequest extends FormRequest
         return $this->user()?->can('master.manage') ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('username') && $this->input('username') === '') {
+            $this->merge(['username' => null]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -22,6 +29,7 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'username' => ['nullable', 'string', 'max:255', 'alpha_dash', 'unique:users,username'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'role' => ['required', Rule::enum(UserRole::class)],
             'is_active' => ['boolean'],

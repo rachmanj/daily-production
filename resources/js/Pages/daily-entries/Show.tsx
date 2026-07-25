@@ -1,6 +1,7 @@
 import EntryTabs from '@/Components/entry/EntryTabs';
 import StatusBadge from '@/Components/entry/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { formatDate } from '@/lib/date';
 import type {
     DailyEntry,
     EquipmentAssignment,
@@ -11,7 +12,6 @@ import type {
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, Card, Descriptions, Space } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 
 interface ShowProps {
     entry: DailyEntry;
@@ -33,7 +33,7 @@ export default function Show({
     fuelCategories,
 }: ShowProps) {
     return (
-        <AuthenticatedLayout title={`Entry — ${dayjs(entry.production_date).format('DD MMM YYYY')}`}>
+        <AuthenticatedLayout title={`Entry — ${formatDate(entry.production_date)}`}>
             <Head title="Detail Entry" />
             <Card style={{ marginBottom: 16 }}>
                 <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
@@ -41,7 +41,7 @@ export default function Show({
                         {entry.site?.code} — {entry.site?.name}
                     </Descriptions.Item>
                     <Descriptions.Item label="Tanggal">
-                        {dayjs(entry.production_date).format('DD MMM YYYY')}
+                        {formatDate(entry.production_date)}
                     </Descriptions.Item>
                     <Descriptions.Item label="Status">
                         <StatusBadge status={entry.status} />

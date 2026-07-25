@@ -61,4 +61,18 @@ class DashboardDataController extends Controller
 
         return response()->json($this->dashboardService->fuelByEquipment($siteId, $date));
     }
+
+    public function consolidated(Request $request): JsonResponse
+    {
+        $siteIds = $request->collect('site_ids')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $from = Carbon::parse($request->string('date_from', now()->startOfMonth()->toDateString()))->startOfDay();
+        $to = Carbon::parse($request->string('date_to', now()->toDateString()))->endOfDay();
+
+        return response()->json($this->dashboardService->consolidated($siteIds, $from, $to));
+    }
 }

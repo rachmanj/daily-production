@@ -1,6 +1,13 @@
 # Current Tasks
 
-**Last Updated**: 2026-07-24
+**Last Updated**: 2026-07-25
+
+## Recently Completed
+
+- `[done] P1: Laporan Konsolidasi — multi-site, multi-periode, merged PDF/Excel + on-screen dashboard (completed: 2026-07-25)`
+- `[done] P1: Dark/light mode toggle (default dark) with Ant Design + Tailwind (completed: 2026-07-25)`
+- `[done] P1: Login page redesign — split-screen branded layout (completed: 2026-07-25)`
+- `[done] P1: Username login support + admin user management field (completed: 2026-07-25)`
 
 ## All Phases Complete
 
@@ -24,5 +31,5 @@
 ## Quick Notes
 
 - Demo data: 31 days May 2026 for site 022C via `DemoDataSeeder`
-- Login: `admin@mineops.test` / `password`
+- Login: `admin@mineops.test` or username `admin` / `password`
 - `php artisan migrate:fresh --seed` + `npm run build` verified green

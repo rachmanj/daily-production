@@ -1,12 +1,12 @@
 import DataTable from '@/Components/DataTable';
 import StatusBadge from '@/Components/entry/StatusBadge';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { dayjs, formatDate } from '@/lib/date';
 import type { Site } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { Button, DatePicker, Popconfirm, Select, Space } from 'antd';
 import type { ProColumns } from '@ant-design/pro-components';
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 
 interface EntryRow {
     id: number;
@@ -42,7 +42,7 @@ export default function Index({ entries, filters, sites, statuses }: DailyEntrie
             title: 'Tanggal',
             dataIndex: 'production_date',
             key: 'production_date',
-            render: (_, record) => dayjs(record.production_date).format('DD MMM YYYY'),
+            render: (_, record) => formatDate(record.production_date),
         },
         {
             title: 'Site',

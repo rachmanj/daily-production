@@ -70,6 +70,32 @@ class ReportController extends Controller
         return $this->downloadFile($filename);
     }
 
+    public function consolidated(): Response
+    {
+        return Inertia::render('reports/Consolidated', [
+            'sites' => Site::query()->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+        ]);
+    }
+
+    public function consolidatedGenerate(Request $request): BinaryFileResponse|RedirectResponse
+    {
+        $filters = $request->validate([
+            'site_ids' => ['nullable', 'array'],
+            'site_ids.*' => ['integer', 'exists:sites,id'],
+            'date_from' => ['required', 'date'],
+            'date_to' => ['required', 'date', 'after_or_equal:date_from'],
+            'format' => ['required', 'in:pdf,excel'],
+        ]);
+
+        $filters['site_ids'] = $filters['site_ids'] ?? [];
+
+        $filename = $filters['format'] === 'excel'
+            ? $this->reportService->generateConsolidatedExcel($filters)
+            : $this->reportService->generateConsolidatedPdf($filters);
+
+        return $this->downloadFile($filename);
+    }
+
     public function download(string $file): BinaryFileResponse
     {
         $path = storage_path("app/reports/{$file}");

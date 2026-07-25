@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { formatDateTime } from '@/lib/date';
 import { Head, router } from '@inertiajs/react';
 import { Button, List, Space, Typography } from 'antd';
-import dayjs from 'dayjs';
 
 interface NotificationItem {
     id: string;
@@ -65,7 +65,7 @@ export default function Index({ notifications }: NotificationsIndexProps) {
                                 <Space direction="vertical" size={0}>
                                     <Text>{item.data.message ?? '—'}</Text>
                                     <Text type="secondary" style={{ fontSize: 12 }}>
-                                        {dayjs(item.created_at).format('DD MMM YYYY HH:mm')}
+                                        {formatDateTime(item.created_at)}
                                     </Text>
                                 </Space>
                             }

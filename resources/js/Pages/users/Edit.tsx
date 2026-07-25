@@ -7,6 +7,7 @@ interface EditProps {
         id: number;
         name: string;
         email: string;
+        username: string | null;
         is_active: boolean;
         role: string;
         site_ids: number[];
@@ -19,6 +20,7 @@ export default function Edit({ user, roleOptions, sites }: EditProps) {
     const { data, setData, put, processing, errors } = useForm({
         name: user.name,
         email: user.email,
+        username: user.username ?? '',
         password: '',
         password_confirmation: '',
         role: user.role,
@@ -40,6 +42,9 @@ export default function Edit({ user, roleOptions, sites }: EditProps) {
                     </Form.Item>
                     <Form.Item label="Email" required validateStatus={errors.email ? 'error' : ''} help={errors.email}>
                         <Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
+                    </Form.Item>
+                    <Form.Item label="Username" validateStatus={errors.username ? 'error' : ''} help={errors.username || 'Opsional. Hanya huruf, angka, dash, dan underscore.'}>
+                        <Input value={data.username} onChange={(e) => setData('username', e.target.value)} />
                     </Form.Item>
                     <Form.Item label="Password Baru" validateStatus={errors.password ? 'error' : ''} help={errors.password || 'Kosongkan jika tidak diubah'}>
                         <Input.Password value={data.password} onChange={(e) => setData('password', e.target.value)} />

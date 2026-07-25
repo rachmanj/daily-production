@@ -3,6 +3,7 @@ import EntryWizard from '@/Components/entry/EntryWizard';
 import StatusBadge from '@/Components/entry/StatusBadge';
 import SyncButton from '@/Components/offline/SyncButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { formatDate } from '@/lib/date';
 import type {
     DailyEntry,
     EquipmentAssignment,
@@ -12,7 +13,6 @@ import type {
 } from '@/types/daily-entry';
 import { Head, router } from '@inertiajs/react';
 import { Button, Card, Descriptions, Space } from 'antd';
-import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 
 interface EditProps {
@@ -45,7 +45,7 @@ export default function Edit({
     }, []);
 
     return (
-        <AuthenticatedLayout title={`Edit Entry — ${dayjs(entry.production_date).format('DD MMM YYYY')}`}>
+        <AuthenticatedLayout title={`Edit Entry — ${formatDate(entry.production_date)}`}>
             <Head title="Edit Entry" />
             <Card style={{ marginBottom: 16 }}>
                 <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }}>
@@ -53,7 +53,7 @@ export default function Edit({
                         {entry.site?.code} — {entry.site?.name}
                     </Descriptions.Item>
                     <Descriptions.Item label="Tanggal">
-                        {dayjs(entry.production_date).format('DD MMM YYYY')}
+                        {formatDate(entry.production_date)}
                     </Descriptions.Item>
                     <Descriptions.Item label="Status">
                         <StatusBadge status={entry.status} />

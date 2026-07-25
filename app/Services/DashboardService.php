@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\EquipmentAssignment;
 use App\Models\FuelRecord;
+use App\Models\Site;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -124,5 +125,86 @@ class DashboardService
         }
 
         return ['items' => []];
+    }
+
+    /**
+     * @param  array<int, int>  $siteIds
+     * @return array<string, mixed>
+     */
+    public function consolidated(array $siteIds, Carbon $from, Carbon $to): array
+    {
+        if ($siteIds === []) {
+            $siteIds = Site::query()
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->pluck('id')
+                ->all();
+        }
+
+        $sites = Site::query()
+            ->whereIn('id', $siteIds)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
+
+        $perSite = [];
+        $grandOb = 0.0;
+        $grandCoal = 0.0;
+        $grandHauling = 0.0;
+        $grandFuel = 0.0;
+
+        foreach ($sites as $site) {
+            $ob = $this->calculationService->totalForPeriod($site->id, $from, $to, 'ob_removal_bcm');
+            $coal = $this->calculationService->totalForPeriod($site->id, $from, $to, 'coal_getting_ton');
+            $hauling = $this->calculationService->totalForPeriod($site->id, $from, $to, 'coal_hauling_ton');
+            $fuel = $this->calculationService->totalForPeriod($site->id, $from, $to, 'fuel_liters');
+
+            $perSite[] = [
+                'site_id' => $site->id,
+                'site_code' => $site->code,
+                'site_name' => $site->name,
+                'ob' => $ob,
+                'coal' => $coal,
+                'hauling' => $hauling,
+                'fuel_liters' => $fuel,
+                'sr' => $this->calculationService->strippingRatio($ob, $coal),
+            ];
+
+            $grandOb += $ob;
+            $grandCoal += $coal;
+            $grandHauling += $hauling;
+            $grandFuel += $fuel;
+        }
+
+        $trend = [];
+        for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
+            $dayOb = 0.0;
+            $dayCoal = 0.0;
+
+            foreach ($siteIds as $siteId) {
+                $dayOb += $this->calculationService->dailyValue($siteId, $d, 'ob_removal_bcm');
+                $dayCoal += $this->calculationService->dailyValue($siteId, $d, 'coal_getting_ton');
+            }
+
+            $trend[] = [
+                'date' => $d->toDateString(),
+                'ob' => $dayOb,
+                'coal' => $dayCoal,
+                'sr' => $this->calculationService->strippingRatio($dayOb, $dayCoal),
+            ];
+        }
+
+        return [
+            'totals' => [
+                'ob' => $grandOb,
+                'coal' => $grandCoal,
+                'hauling' => $grandHauling,
+                'fuel_liters' => $grandFuel,
+                'sr' => $this->calculationService->strippingRatio($grandOb, $grandCoal),
+            ],
+            'sites' => $perSite,
+            'trend' => $trend,
+            'date_from' => $from->toDateString(),
+            'date_to' => $to->toDateString(),
+        ];
     }
 }

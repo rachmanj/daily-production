@@ -2,6 +2,7 @@ import NotificationBell from '@/Components/NotificationBell';
 import OfflineIndicator from '@/Components/offline/OfflineIndicator';
 import SyncButton from '@/Components/offline/SyncButton';
 import SiteSelector from '@/Components/SiteSelector';
+import ThemeToggle from '@/Components/ThemeToggle';
 import {
     AimOutlined,
     DashboardOutlined,
@@ -17,9 +18,10 @@ import {
 } from '@ant-design/icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import type { MenuProps } from 'antd';
-import { Avatar, Dropdown, Layout, Menu, Space, Typography, message } from 'antd';
-import { PropsWithChildren, ReactNode, useEffect, useMemo } from 'react';
+import { Avatar, Dropdown, Layout, Menu, Space, Typography, message, theme } from 'antd';
+import { PropsWithChildren, ReactNode, useEffect, useMemo, useState } from 'react';
 import { PageProps } from '@/types';
+import { resolveSidebarMenu } from '@/lib/navigation';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -34,8 +36,19 @@ export default function AuthenticatedLayout({
     title,
     header,
 }: AuthenticatedLayoutProps) {
-    const { auth, flash } = usePage<PageProps>().props;
+    const { props: { auth, flash }, url } = usePage<PageProps>();
     const user = auth.user;
+    const { token } = theme.useToken();
+
+    const { selectedKeys, openKeys: routeOpenKeys } = useMemo(
+        () => resolveSidebarMenu(url),
+        [url],
+    );
+    const [openKeys, setOpenKeys] = useState(routeOpenKeys);
+
+    useEffect(() => {
+        setOpenKeys(routeOpenKeys);
+    }, [routeOpenKeys]);
 
     useEffect(() => {
         if (flash?.success) {
@@ -182,13 +195,20 @@ export default function AuthenticatedLayout({
                 >
                     ARKA MineOps
                 </div>
-                <Menu theme="dark" mode="inline" defaultSelectedKeys={['dashboard']} items={menuItems} />
+                <Menu
+                    theme="dark"
+                    mode="inline"
+                    selectedKeys={selectedKeys}
+                    openKeys={openKeys}
+                    onOpenChange={setOpenKeys}
+                    items={menuItems}
+                />
             </Sider>
             <Layout>
                 <OfflineIndicator />
                 <Header
                     style={{
-                        background: '#fff',
+                        background: token.colorBgContainer,
                         padding: '0 24px',
                         display: 'flex',
                         alignItems: 'center',
@@ -202,6 +222,7 @@ export default function AuthenticatedLayout({
                         <SyncButton />
                         <SiteSelector />
                         <NotificationBell />
+                        <ThemeToggle />
                         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
                             <Space style={{ cursor: 'pointer' }}>
                                 <Avatar icon={<UserOutlined />} />

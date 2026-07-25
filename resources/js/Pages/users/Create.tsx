@@ -11,6 +11,7 @@ export default function Create({ roleOptions, sites }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         email: '',
+        username: '',
         password: '',
         password_confirmation: '',
         role: Object.keys(roleOptions)[0] ?? '',
@@ -32,6 +33,9 @@ export default function Create({ roleOptions, sites }: CreateProps) {
                     </Form.Item>
                     <Form.Item label="Email" required validateStatus={errors.email ? 'error' : ''} help={errors.email}>
                         <Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
+                    </Form.Item>
+                    <Form.Item label="Username" validateStatus={errors.username ? 'error' : ''} help={errors.username || 'Opsional. Hanya huruf, angka, dash, dan underscore.'}>
+                        <Input value={data.username} onChange={(e) => setData('username', e.target.value)} />
                     </Form.Item>
                     <Form.Item label="Password" required validateStatus={errors.password ? 'error' : ''} help={errors.password}>
                         <Input.Password value={data.password} onChange={(e) => setData('password', e.target.value)} />

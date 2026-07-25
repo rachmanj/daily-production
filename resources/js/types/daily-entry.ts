@@ -89,7 +89,6 @@ export interface EquipmentSearchResult {
 export interface ShiftOption {
     id: number;
     name: string;
-    site_id: number;
 }
 
 export interface PitOption {

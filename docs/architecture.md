@@ -1,6 +1,6 @@
 # System Architecture — ARKA MineOps
 
-**Last Updated**: 2026-07-24
+**Last Updated**: 2026-07-25
 
 ## Project Overview
 
@@ -8,9 +8,38 @@ Integrated mining operations dashboard for PT. Arkananta. Unifies daily producti
 
 ## Technology Stack
 
-- **Frontend**: React 18 + TypeScript + Inertia.js v2 + Ant Design 5 + @ant-design/charts + @tanstack/react-query + vite-plugin-pwa
+- **Frontend**: React 18 + TypeScript + Inertia.js v2 + Ant Design 5 + @ant-design/charts + @tanstack/react-query + vite-plugin-pwa + Tailwind CSS (class-based dark mode)
 - **Backend**: Laravel 13 + PHP 8.5 + MySQL 8 + Redis + Horizon
-- **Auth**: Laravel Breeze + Spatie Permission + Sanctum (SPA stateful API)
+- **Auth**: Laravel Breeze + Spatie Permission + Sanctum (SPA stateful API); login accepts email or username
+
+## Theming
+
+Global dark/light mode toggle (default: **dark**), persisted in `localStorage` (`theme` key).
+
+```mermaid
+flowchart LR
+    subgraph client [Client]
+        ThemeContext["ThemeContext.tsx"]
+        AntProvider["Ant ConfigProvider algorithm"]
+        TailwindDark["html.dark class"]
+        ThemeToggle["ThemeToggle component"]
+    end
+    ThemeContext --> AntProvider
+    ThemeContext --> TailwindDark
+    ThemeToggle --> ThemeContext
+```
+
+- **Ant Design**: `theme.darkAlgorithm` / `theme.defaultAlgorithm` in [resources/js/app.tsx](resources/js/app.tsx)
+- **Tailwind**: `darkMode: 'class'` in [tailwind.config.js](tailwind.config.js)
+- **No-flash**: inline script in [resources/views/app.blade.php](resources/views/app.blade.php) applies `dark` class before hydration
+- **Toggle placement**: `AuthenticatedLayout` header + login page
+
+## Authentication UI
+
+Login page ([resources/js/Pages/Auth/Login.tsx](resources/js/Pages/Auth/Login.tsx)): split-screen branded layout (gradient brand panel + Ant Design form card). Single `login` field accepts email or username; backend resolves field in [app/Http/Requests/Auth/LoginRequest.php](app/Http/Requests/Auth/LoginRequest.php).
+
+Users table includes optional unique `username` column (nullable; admins set via Master Data > Pengguna).
+
 - **Integrations**: arkfleet-next (equipment API), ARK-GS (procurement API)
 
 ## Core Modules
@@ -20,7 +49,7 @@ Integrated mining operations dashboard for PT. Arkananta. Unifies daily producti
 | Master Data | `/sites`, `/pits`, `/shifts`, `/fuel-types`, `/equipment-assignments` | ✅ |
 | Daily Entry | `/daily-entries`, `/excel-imports` | ✅ |
 | Dashboard | `/dashboard`, `/api/dashboard/*` | ✅ |
-| Reports | `/reports` | ✅ |
+| Reports | `/reports`, `/reports/consolidated` | ✅ |
 | Plan vs Actual | `/monthly-plans`, `/variance` | ✅ |
 | Procurement | `/procurement`, `/api/procurement/*` | ✅ |
 | Notifications | `/notifications` + scheduled commands | ✅ |
@@ -33,7 +62,7 @@ Integrated mining operations dashboard for PT. Arkananta. Unifies daily producti
 - **DashboardService** — KPI/trend/utilization aggregation
 - **PlanService** — Monthly plans, variance, loss contribution
 - **ProcurementApiService** — ARK-GS HTTP client, 6h Redis cache, mock fallback
-- **ReportService** — PDF (dompdf) + Excel exports
+- **ReportService** — PDF (dompdf) + Excel exports; consolidated multi-site/period report (production + fuel + deployment + site info)
 - **EquipmentApiService** — arkfleet-next with local fallback
 - **AnomalyDetectionService** — FCR outlier detection (2σ)
 - **AiInsightService** — OpenRouter optional narrative
@@ -45,7 +74,7 @@ Core: `sites`, `pits`, `shifts`, `daily_entries`, `production_records`, `fuel_re
 ## API Endpoints
 
 ```
-GET  /api/dashboard/kpi|trend|utilization|per-pit|drilldown|fuel-by-equipment
+GET  /api/dashboard/kpi|trend|utilization|per-pit|drilldown|fuel-by-equipment|consolidated
 GET  /api/procurement/po-sent|grpo|npi|budget|all-projects
 POST /api/sync/daily-entries
 GET  /api/sync/status

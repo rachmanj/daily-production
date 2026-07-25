@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\DashboardDataController;
 use App\Http\Controllers\ProcurementDataController;
+use App\Http\Controllers\VarianceController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -13,6 +14,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/per-pit', [DashboardDataController::class, 'perPit'])->name('perPit');
         Route::get('/drilldown', [DashboardDataController::class, 'drilldown'])->name('drilldown');
         Route::get('/fuel-by-equipment', [DashboardDataController::class, 'fuelByEquipment'])->name('fuelByEquipment');
+        Route::get('/consolidated', [DashboardDataController::class, 'consolidated'])->name('consolidated');
     });
 
     Route::prefix('procurement')->name('procurement-data.')->group(function () {
@@ -28,5 +30,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/status', [SyncController::class, 'status'])->name('status');
     });
 
-    Route::get('/variance/data', [\App\Http\Controllers\VarianceController::class, 'data'])->name('variance.data');
+    Route::get('/variance/data', [VarianceController::class, 'data'])->name('variance.data');
 });

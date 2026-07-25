@@ -147,6 +147,11 @@ class CalculationService
         return $this->sumMetricForPeriod($siteId, $date->copy()->startOfDay(), $date->copy()->endOfDay(), $metric);
     }
 
+    public function totalForPeriod(int $siteId, Carbon $from, Carbon $to, string $metric): float
+    {
+        return $this->sumMetricForPeriod($siteId, $from, $to, $metric);
+    }
+
     /**
      * @return array<int, array{date: string, ob: float, coal: float, sr: float|null}>
      */

@@ -51,5 +51,6 @@ export default defineConfig({
         alias: {
             '@': path.resolve(__dirname, 'resources/js'),
         },
+        dedupe: ['dayjs', 'react', 'react-dom'],
     },
 });

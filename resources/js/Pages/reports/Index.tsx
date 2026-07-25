@@ -62,6 +62,16 @@ export default function Index({ sites }: ReportsIndexProps) {
                         </Link>
                     </Card>
                 </Col>
+                <Col xs={24} md={12}>
+                    <Card title="Laporan Konsolidasi">
+                        <p>Ringkasan multi-site dan multi-periode: produksi, fuel, deployment, dan info site.</p>
+                        <Link href={route('reports.consolidated')}>
+                            <Button type="primary" icon={<FormOutlined />}>
+                                Buka Laporan Konsolidasi
+                            </Button>
+                        </Link>
+                    </Card>
+                </Col>
             </Row>
         </AuthenticatedLayout>
     );

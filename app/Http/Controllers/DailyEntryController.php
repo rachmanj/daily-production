@@ -124,7 +124,14 @@ class DailyEntryController extends Controller
         return [
             'entry' => $dailyEntry,
             'pits' => Pit::query()->where('site_id', $siteId)->where('is_active', true)->orderBy('code')->get(),
-            'shifts' => Shift::query()->where('site_id', $siteId)->where('is_active', true)->orderBy('name')->get(),
+            'shifts' => Shift::query()
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Shift $shift) => [
+                    'id' => $shift->id,
+                    'name' => $shift->name->label(),
+                ])
+                ->values(),
             'fuelTypes' => FuelType::query()->where('is_active', true)->orderBy('name')->get(),
             'equipmentAssignments' => EquipmentAssignment::query()
                 ->where('site_id', $siteId)

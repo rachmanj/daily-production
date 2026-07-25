@@ -1,5 +1,5 @@
 **Purpose**: AI's persistent knowledge base for project context and learnings
-**Last Updated**: 2026-07-23
+**Last Updated**: 2026-07-25
 
 ## Memory Maintenance Guidelines
 
@@ -19,6 +19,56 @@
 ---
 
 ## Project Memory Entries
+
+### [008] Consolidated Report — Multi-Site Period Rollup (2026-07-25) ✅ COMPLETE
+
+**Decision**: Add "Laporan Konsolidasi" as a dedicated reports page (not merging Dashboard/Reports nav) that rolls up production, fuel, deployment, and site-info across multiple sites and a date range into one on-screen view plus merged PDF/Excel export.
+
+**Solution**: `DashboardService::consolidated()` for live KPIs/trend; `ReportService::buildConsolidatedReportData()` for export payload; 5-sheet Excel (`Summary`, `Production`, `Fuel`, `Deployment`, `Site Info`); Blade `reports/consolidated.blade.php` with per-site sections. Empty `site_ids` = all active sites.
+
+**Key Learning**: Daily exports already loaded fuel/deployment in `buildDailyReportData` but did not render them — consolidation closes the gap the original 3-Excel workflow intended, without replacing per-site daily DPR downloads.
+
+---
+
+### [007] Daily Entry Shifts SQL & React Double Mount (2026-07-25) ✅ COMPLETE
+
+**Challenge**: Viewing/editing daily entries crashed with `Unknown column 'site_id' in shifts`. Browser also logged `createRoot()` called twice, causing intermittent blank pages.
+
+**Solution**: `shifts` table is global (Day/Night only) — removed invalid `site_id`/`is_active` filters in `DailyEntryController::entryPayload`. Fixed duplicate Vite entry in `app.blade.php` (load only `app.tsx`) and made `app.tsx` reuse a single React root across HMR reloads.
+
+**Key Learning**: Shifts are not site-scoped in this schema; match `ShiftController` query pattern. Inertia apps should not list page components as separate `@vite` entries.
+
+---
+
+### [006] Chinese Date Locale in Tables (2026-07-25) ✅ COMPLETE
+
+**Challenge**: Daily Entry table showed dates like `31 5月 2026` (Chinese month) despite `dayjs.locale('id')` in `app.tsx`.
+
+**Solution**: Ant Design Pro bundles `zh_CN` dayjs locale; separate Vite page entry chunks can use a different dayjs instance. Added `@/lib/date` with `formatDate`/`formatDateTime` that always call `.locale('id')`, deduped `dayjs` in `vite.config.js`, and updated date displays to use the helper.
+
+**Key Learning**: With `@vite([app.tsx, page.tsx])` multi-entry setup, set locale per-format call or share a single configured dayjs module — global `dayjs.locale()` in app entry may not reach page chunks.
+
+---
+
+### [005] Daily Entry authorize() Error (2026-07-25) ✅ COMPLETE
+
+**Challenge**: `DailyEntryController::index` crashed with `Call to undefined method authorize()` at line 29.
+
+**Solution**: Base `Controller` was empty (Laravel 11+ skeleton). Added `AuthorizesRequests` trait so `$this->authorize()` works in all controllers (`DailyEntryController`, `DailyEntryWorkflowController`, `ExcelImportController`).
+
+**Key Learning**: When using policies with `$this->authorize()`, ensure base `Controller` includes `Illuminate\Foundation\Auth\Access\AuthorizesRequests`.
+
+---
+
+### [004] Theme System & Username Login (2026-07-25) ✅ COMPLETE
+
+**Decision**: Global dark/light mode via React `ThemeContext` (default dark, `localStorage` persistence) driving both Ant Design `ConfigProvider` algorithm and Tailwind `dark` class on `<html>`. Login redesigned as split-screen branded page using Ant Design components.
+
+**Solution**: Added nullable unique `username` column to `users`. Login accepts single `login` field; `LoginRequest` resolves email vs username via `filter_var`. Admins manage usernames via Master Data > Pengguna Create/Edit forms.
+
+**Key Learning**: Mixed Ant Design + Tailwind apps need dual theming — Ant tokens for component UI, Tailwind `dark:` for any remaining utility-based pages. Inline `<head>` script prevents theme flash on load.
+
+---
 
 ### [001] Project Kickoff — Concept & Action Plan Finalized (2026-07-23) ✅ COMPLETE
 

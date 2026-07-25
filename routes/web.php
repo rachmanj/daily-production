@@ -24,18 +24,13 @@ use App\Http\Controllers\SiteInfoController;
 use App\Http\Controllers\SiteSwitchController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VarianceController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
+})->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -64,6 +59,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/daily', [ReportController::class, 'daily'])->name('reports.daily');
     Route::get('/reports/custom', [ReportController::class, 'custom'])->name('reports.custom');
     Route::post('/reports/custom', [ReportController::class, 'customGenerate'])->name('reports.customGenerate');
+    Route::get('/reports/consolidated', [ReportController::class, 'consolidated'])->name('reports.consolidated');
+    Route::post('/reports/consolidated', [ReportController::class, 'consolidatedGenerate'])->name('reports.consolidatedGenerate');
     Route::get('/reports/download/{file}', [ReportController::class, 'download'])->name('reports.download');
 
     // Monthly Plans & Variance

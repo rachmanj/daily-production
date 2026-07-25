@@ -9,6 +9,7 @@ interface UserRow {
     id: number;
     name: string;
     email: string;
+    username: string | null;
     is_active: boolean;
     roles: string[];
     sites: { id: number; code: string; name: string }[];
@@ -24,6 +25,12 @@ export default function Index({ users, roleOptions, filters }: UsersIndexProps) 
     const columns: ProColumns<UserRow>[] = [
         { title: 'Nama', dataIndex: 'name', key: 'name' },
         { title: 'Email', dataIndex: 'email', key: 'email' },
+        {
+            title: 'Username',
+            dataIndex: 'username',
+            key: 'username',
+            render: (_, record) => record.username ?? '—',
+        },
         {
             title: 'Role',
             dataIndex: 'roles',

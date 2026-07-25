@@ -33,3 +33,28 @@ export interface FuelByEquipmentRow {
     hours: number;
     fcr: number | null;
 }
+
+export interface ConsolidatedSiteRow {
+    site_id: number;
+    site_code: string;
+    site_name: string;
+    ob: number;
+    coal: number;
+    hauling: number;
+    fuel_liters: number;
+    sr: number | null;
+}
+
+export interface ConsolidatedSummary {
+    totals: {
+        ob: number;
+        coal: number;
+        hauling: number;
+        fuel_liters: number;
+        sr: number | null;
+    };
+    sites: ConsolidatedSiteRow[];
+    trend: TrendPoint[];
+    date_from: string;
+    date_to: string;
+}
