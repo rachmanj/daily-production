@@ -13,7 +13,7 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: [],
+            includeAssets: ['favicon.ico'],
             manifest: {
                 name: 'ARKA MineOps',
                 short_name: 'MineOps',
@@ -24,11 +24,9 @@ export default defineConfig({
                 start_url: '/dashboard',
                 lang: 'id',
                 icons: [
-                    {
-                        src: '/favicon.ico',
-                        sizes: '64x64',
-                        type: 'image/x-icon',
-                    },
+                    { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
+                    { src: '/pwa-512.png', sizes: '512x512', type: 'image/png' },
+                    { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
                 ],
             },
             workbox: {
