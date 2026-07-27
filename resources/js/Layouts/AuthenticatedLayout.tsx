@@ -130,6 +130,10 @@ export default function AuthenticatedLayout({
                         label: <Link href={route('sites.index')} onClick={() => setMobileDrawerOpen(false)}>Sites & PITs</Link>,
                     },
                     {
+                        key: 'master-pits',
+                        label: <Link href={route('pits.index')} onClick={() => setMobileDrawerOpen(false)}>PITs</Link>,
+                    },
+                    {
                         key: 'master-shifts',
                         label: <Link href={route('shifts.index')} onClick={() => setMobileDrawerOpen(false)}>Shifts</Link>,
                     },
