@@ -150,10 +150,6 @@ export default function AuthenticatedLayout({
         ],
         [],
     );
-            },
-        ],
-        [],
-    );
 
     const userMenuItems: MenuProps['items'] = [
         {
