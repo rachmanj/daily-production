@@ -90,20 +90,47 @@ export default function AuthenticatedLayout({
                 icon: <ToolOutlined />,
                 label: <Link href={route('equipment-assignments.index')} onClick={() => setMobileDrawerOpen(false)}>Equipment</Link>,
             },
+            { type: 'divider' },
             {
-                key: 'plan',
+                key: 'master-sites',
+                icon: <SettingOutlined />,
+                label: <Link href={route('sites.index')} onClick={() => setMobileDrawerOpen(false)}>Sites</Link>,
+            },
+            {
+                key: 'master-pits',
+                icon: <SettingOutlined />,
+                label: <Link href={route('pits.index')} onClick={() => setMobileDrawerOpen(false)}>PITs</Link>,
+            },
+            {
+                key: 'master-shifts',
+                icon: <SettingOutlined />,
+                label: <Link href={route('shifts.index')} onClick={() => setMobileDrawerOpen(false)}>Shifts</Link>,
+            },
+            {
+                key: 'master-fuel-types',
+                icon: <SettingOutlined />,
+                label: <Link href={route('fuel-types.index')} onClick={() => setMobileDrawerOpen(false)}>Jenis BBM</Link>,
+            },
+            {
+                key: 'master-fuel-prices',
+                icon: <SettingOutlined />,
+                label: <Link href={route('fuel-prices.index')} onClick={() => setMobileDrawerOpen(false)}>Harga BBM</Link>,
+            },
+            {
+                key: 'master-users',
+                icon: <SettingOutlined />,
+                label: <Link href={route('users.index')} onClick={() => setMobileDrawerOpen(false)}>Pengguna</Link>,
+            },
+            { type: 'divider' },
+            {
+                key: 'monthly-plans',
                 icon: <AimOutlined />,
-                label: 'Plan',
-                children: [
-                    {
-                        key: 'monthly-plans',
-                        label: <Link href={route('monthly-plans.index')} onClick={() => setMobileDrawerOpen(false)}>Monthly Plan</Link>,
-                    },
-                    {
-                        key: 'variance',
-                        label: <Link href={route('variance.index')} onClick={() => setMobileDrawerOpen(false)}>Variance</Link>,
-                    },
-                ],
+                label: <Link href={route('monthly-plans.index')} onClick={() => setMobileDrawerOpen(false)}>Monthly Plan</Link>,
+            },
+            {
+                key: 'variance',
+                icon: <AimOutlined />,
+                label: <Link href={route('variance.index')} onClick={() => setMobileDrawerOpen(false)}>Variance</Link>,
             },
             {
                 key: 'procurement',
@@ -120,44 +147,9 @@ export default function AuthenticatedLayout({
                 icon: <FormOutlined />,
                 label: <Link href={route('notifications.index')} onClick={() => setMobileDrawerOpen(false)}>Notifikasi</Link>,
             },
-            {
-                key: 'master',
-                icon: <SettingOutlined />,
-                label: 'Master Data',
-                children: [
-                    {
-                        key: 'master-sites',
-                        label: <Link href={route('sites.index')} onClick={() => setMobileDrawerOpen(false)}>Sites & PITs</Link>,
-                    },
-                    {
-                        key: 'master-pits',
-                        label: <Link href={route('pits.index')} onClick={() => setMobileDrawerOpen(false)}>PITs</Link>,
-                    },
-                    {
-                        key: 'master-shifts',
-                        label: <Link href={route('shifts.index')} onClick={() => setMobileDrawerOpen(false)}>Shifts</Link>,
-                    },
-                    {
-                        key: 'master-fuel-types',
-                        label: <Link href={route('fuel-types.index')} onClick={() => setMobileDrawerOpen(false)}>Jenis BBM</Link>,
-                    },
-                    {
-                        key: 'master-fuel-prices',
-                        label: <Link href={route('fuel-prices.index')} onClick={() => setMobileDrawerOpen(false)}>Harga BBM</Link>,
-                    },
-                    {
-                        key: 'master-users',
-                        label: <Link href={route('users.index')} onClick={() => setMobileDrawerOpen(false)}>Pengguna</Link>,
-                    },
-                    {
-                        key: 'master-roles',
-                        label: <Link href={route('roles.index')} onClick={() => setMobileDrawerOpen(false)}>Roles</Link>,
-                    },
-                    {
-                        key: 'master-equipment',
-                        label: <Link href={route('equipment-assignments.index')} onClick={() => setMobileDrawerOpen(false)}>Equipment Assignment</Link>,
-                    },
-                ],
+        ],
+        [],
+    );
             },
         ],
         [],
