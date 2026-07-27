@@ -4,16 +4,28 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { dayjs, formatDate } from '@/lib/date';
 import type { Site } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Button, DatePicker, Popconfirm, Select, Space } from 'antd';
+import { Button, DatePicker, Dropdown, Grid, Popconfirm, Select, Space, Typography } from 'antd';
 import type { ProColumns } from '@ant-design/pro-components';
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+    DeleteOutlined,
+    EditOutlined,
+    EyeOutlined,
+    FilterOutlined,
+    MoreOutlined,
+    PlusOutlined,
+    UploadOutlined,
+} from '@ant-design/icons';
+import { useState } from 'react';
+
+const { useBreakpoint } = Grid;
+const { Text } = Typography;
 
 interface EntryRow {
     id: number;
     production_date: string;
     status: string;
-    site?: { id: number; code: string; name: string };
-    creator?: { id: number; name: string };
+    site?: { id: number; code: string; name: string } | null;
+    creator?: { id: number; name: string } | null;
 }
 
 interface PaginatedEntries {
@@ -37,104 +49,175 @@ interface DailyEntriesIndexProps {
 }
 
 export default function Index({ entries, filters, sites, statuses }: DailyEntriesIndexProps) {
-    const columns: ProColumns<EntryRow>[] = [
-        {
-            title: 'Tanggal',
-            dataIndex: 'production_date',
-            key: 'production_date',
-            render: (_, record) => formatDate(record.production_date),
-        },
-        {
-            title: 'Site',
-            key: 'site',
-            render: (_, record) => record.site ? `${record.site.code} — ${record.site.name}` : '—',
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (_, record) => <StatusBadge status={record.status} />,
-        },
-        {
-            title: 'Dibuat Oleh',
-            key: 'creator',
-            render: (_, record) => record.creator?.name ?? '—',
-        },
-        {
-            title: 'Aksi',
-            key: 'actions',
-            valueType: 'option',
-            render: (_, record) => (
-                <Space>
-                    <Link href={route('daily-entries.show', record.id)}>
-                        <Button type="link" icon={<EyeOutlined />} />
-                    </Link>
-                    <Link href={route('daily-entries.edit', record.id)}>
-                        <Button type="link" icon={<EditOutlined />} />
-                    </Link>
-                    <Popconfirm
-                        title="Hapus entry ini?"
-                        onConfirm={() => router.delete(route('daily-entries.destroy', record.id))}
-                    >
-                        <Button type="link" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
+    const [filterOpen, setFilterOpen] = useState(false);
 
     const applyFilters = (patch: Record<string, string | number | undefined>) => {
         router.get(route('daily-entries.index'), { ...filters, ...patch }, { preserveState: true });
     };
 
+    const hasFilters = filters.site_id || filters.status || filters.date_from || filters.date_to;
+
+    const columns: ProColumns<EntryRow>[] = [
+        {
+            title: 'Tanggal',
+            dataIndex: 'production_date',
+            key: 'production_date',
+            width: isMobile ? 100 : undefined,
+            render: (_, record) => formatDate(record.production_date),
+        },
+        {
+            title: 'Site',
+            key: 'site',
+            responsive: ['md'] as any,
+            render: (_, record) => record.site ? `${record.site.code}` : '—',
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: 90,
+            render: (_, record) => <StatusBadge status={record.status} />,
+        },
+        {
+            title: 'Aksi',
+            key: 'actions',
+            valueType: 'option',
+            width: isMobile ? 50 : 120,
+            render: (_, record) =>
+                isMobile ? (
+                    <Dropdown
+                        menu={{
+                            items: [
+                                {
+                                    key: 'view',
+                                    icon: <EyeOutlined />,
+                                    label: 'Lihat',
+                                    onClick: () => router.get(route('daily-entries.show', record.id)),
+                                },
+                                {
+                                    key: 'edit',
+                                    icon: <EditOutlined />,
+                                    label: 'Edit',
+                                    onClick: () => router.get(route('daily-entries.edit', record.id)),
+                                },
+                                { type: 'divider' },
+                                {
+                                    key: 'delete',
+                                    icon: <DeleteOutlined />,
+                                    label: 'Hapus',
+                                    danger: true,
+                                    onClick: () => {
+                                        if (confirm('Hapus entry ini?')) {
+                                            router.delete(route('daily-entries.destroy', record.id));
+                                        }
+                                    },
+                                },
+                            ],
+                        }}
+                        trigger={['click']}
+                    >
+                        <Button type="text" size="small" icon={<MoreOutlined />} />
+                    </Dropdown>
+                ) : (
+                    <Space size="small">
+                        <Link href={route('daily-entries.show', record.id)}>
+                            <Button type="link" size="small" icon={<EyeOutlined />} />
+                        </Link>
+                        <Link href={route('daily-entries.edit', record.id)}>
+                            <Button type="link" size="small" icon={<EditOutlined />} />
+                        </Link>
+                        <Popconfirm
+                            title="Hapus entry ini?"
+                            onConfirm={() => router.delete(route('daily-entries.destroy', record.id))}
+                        >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                    </Space>
+                ),
+        },
+    ];
+
+    const filterBar = (
+        <Space wrap size="small" style={{ width: '100%', marginBottom: 16 }}>
+            <Select
+                allowClear
+                placeholder="Site"
+                style={{ width: isMobile ? '100%' : 200 }}
+                value={filters.site_id}
+                onChange={(v) => applyFilters({ site_id: v })}
+                options={sites.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` }))}
+            />
+            <Select
+                allowClear
+                placeholder="Status"
+                style={{ width: isMobile ? '100%' : 160 }}
+                value={filters.status}
+                onChange={(v) => applyFilters({ status: v })}
+                options={Object.entries(statuses).map(([value, label]) => ({ value, label }))}
+            />
+            <DatePicker
+                placeholder="Dari"
+                style={{ width: isMobile ? '100%' : undefined }}
+                value={filters.date_from ? dayjs(filters.date_from) : null}
+                onChange={(d) => applyFilters({ date_from: d?.format('YYYY-MM-DD') })}
+            />
+            <DatePicker
+                placeholder="Sampai"
+                style={{ width: isMobile ? '100%' : undefined }}
+                value={filters.date_to ? dayjs(filters.date_to) : null}
+                onChange={(d) => applyFilters({ date_to: d?.format('YYYY-MM-DD') })}
+            />
+        </Space>
+    );
+
     return (
         <AuthenticatedLayout title="Daily Entry">
             <Head title="Daily Entry" />
-            <Space wrap style={{ marginBottom: 16 }}>
-                <Select
-                    allowClear
-                    placeholder="Site"
-                    style={{ width: 200 }}
-                    value={filters.site_id}
-                    onChange={(v) => applyFilters({ site_id: v })}
-                    options={sites.map((s) => ({ value: s.id, label: `${s.code} — ${s.name}` }))}
-                />
-                <Select
-                    allowClear
-                    placeholder="Status"
-                    style={{ width: 160 }}
-                    value={filters.status}
-                    onChange={(v) => applyFilters({ status: v })}
-                    options={Object.entries(statuses).map(([value, label]) => ({ value, label }))}
-                />
-                <DatePicker
-                    placeholder="Dari"
-                    value={filters.date_from ? dayjs(filters.date_from) : null}
-                    onChange={(d) => applyFilters({ date_from: d?.format('YYYY-MM-DD') })}
-                />
-                <DatePicker
-                    placeholder="Sampai"
-                    value={filters.date_to ? dayjs(filters.date_to) : null}
-                    onChange={(d) => applyFilters({ date_to: d?.format('YYYY-MM-DD') })}
-                />
-            </Space>
+
+            {isMobile ? (
+                <>
+                    <Button
+                        icon={<FilterOutlined />}
+                        type={hasFilters ? 'primary' : 'default'}
+                        onClick={() => setFilterOpen(!filterOpen)}
+                        block
+                        style={{ marginBottom: 12 }}
+                    >
+                        Filter {hasFilters ? '•' : ''}
+                    </Button>
+                    {filterOpen && filterBar}
+                </>
+            ) : (
+                filterBar
+            )}
+
             <DataTable<EntryRow>
-                headerTitle="Daftar Entry Harian"
+                headerTitle="Entry Harian"
                 dataSource={entries.data}
                 columns={columns}
-                pagination={{
-                    current: entries.current_page,
-                    total: entries.total,
-                    pageSize: entries.per_page,
-                    onChange: (page) => router.get(route('daily-entries.index'), { ...filters, page }),
-                }}
+                pagination={
+                    entries.total > entries.per_page
+                        ? {
+                              current: entries.current_page,
+                              total: entries.total,
+                              pageSize: entries.per_page,
+                              size: isMobile ? 'small' : 'default',
+                              onChange: (page) =>
+                                  router.get(route('daily-entries.index'), { ...filters, page }),
+                          }
+                        : false
+                }
                 toolBarRender={() => [
                     <Link key="import" href={route('excel-imports.create')}>
-                        <Button icon={<UploadOutlined />}>Import Excel</Button>
+                        <Button icon={<UploadOutlined />} size={isMobile ? 'middle' : undefined}>
+                            {isMobile ? '' : 'Import Excel'}
+                        </Button>
                     </Link>,
                     <Link key="create" href={route('daily-entries.create')}>
-                        <Button type="primary" icon={<PlusOutlined />}>
-                            Entry Baru
+                        <Button type="primary" icon={<PlusOutlined />} size={isMobile ? 'middle' : undefined}>
+                            {isMobile ? 'Baru' : 'Entry Baru'}
                         </Button>
                     </Link>,
                 ]}
