@@ -7,7 +7,7 @@
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
         <!-- PWA -->
-        <link rel="manifest" href="/build/manifest.webmanifest">
+        <link rel="manifest" href="/build/manifest.webmanifest" crossorigin="use-credentials">
         <meta name="theme-color" content="#1677ff">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
         <meta name="apple-mobile-web-app-capable" content="yes">
