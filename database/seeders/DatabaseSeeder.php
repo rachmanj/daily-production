@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             CcrEquipmentSeeder::class,
             MaterialDailyPlanSeeder::class,
             MonthlyPlanSeeder::class,
+            TestUserSeeder::class,
             DemoDataSeeder::class,
         ]);
     }
