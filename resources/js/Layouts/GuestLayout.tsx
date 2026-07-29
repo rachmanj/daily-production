@@ -1,17 +1,45 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
-import { Link } from '@inertiajs/react';
+import ThemeToggle from '@/Components/ThemeToggle';
+import { Grid, theme } from 'antd';
 import { PropsWithChildren } from 'react';
 
-export default function Guest({ children }: PropsWithChildren) {
+const { useBreakpoint } = Grid;
+
+export default function GuestLayout({ children }: PropsWithChildren) {
+    const { token } = theme.useToken();
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
+
     return (
-        <div className="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0">
-            <div>
-                <Link href="/">
-                    <ApplicationLogo className="h-20 w-20 fill-current text-gray-500" />
-                </Link>
+        <div
+            style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '100dvh',
+                overflowY: 'auto',
+                padding: isMobile ? '16px 20px' : '24px',
+                background: `linear-gradient(160deg, ${token.colorBgLayout} 0%, ${token.colorBgElevated} 45%, ${token.colorBgLayout} 100%)`,
+            }}
+        >
+            <div
+                style={{
+                    position: 'absolute',
+                    top: isMobile ? 16 : 24,
+                    right: isMobile ? 16 : 24,
+                    zIndex: 10,
+                }}
+            >
+                <ThemeToggle />
             </div>
 
-            <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg">
+            <div
+                style={{
+                    width: '100%',
+                    maxWidth: isMobile ? 'min(90vw, 420px)' : 420,
+                    margin: '0 auto',
+                }}
+            >
                 {children}
             </div>
         </div>
