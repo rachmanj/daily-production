@@ -1,4 +1,3 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import {
@@ -62,15 +61,6 @@ export default function Login({
                     size={isMobile ? 8 : 12}
                     style={{ width: '100%', textAlign: 'center', marginBottom: isMobile ? 16 : 20 }}
                 >
-                    <ApplicationLogo
-                        style={{
-                            color: token.colorPrimary,
-                            width: isMobile ? 48 : 56,
-                            height: isMobile ? 48 : 56,
-                            display: 'block',
-                            margin: '0 auto',
-                        }}
-                    />
                     <Title level={isMobile ? 4 : 3} style={{ margin: 0 }}>
                         ARKA MineOps
                     </Title>
@@ -87,15 +77,12 @@ export default function Login({
 
                 <Divider style={{ margin: isMobile ? '16px 0 20px' : '20px 0 24px' }} />
 
-                <Title level={isMobile ? 5 : 4} style={{ marginBottom: 4 }}>
+                <Title
+                    level={isMobile ? 5 : 4}
+                    style={{ marginBottom: isMobile ? 20 : 24, textAlign: 'center' }}
+                >
                     Masuk
                 </Title>
-                <Paragraph
-                    type="secondary"
-                    style={{ marginBottom: isMobile ? 20 : 24, fontSize: isMobile ? 13 : 14 }}
-                >
-                    Gunakan email atau username untuk masuk ke akun Anda.
-                </Paragraph>
 
                 {status && (
                     <Alert
