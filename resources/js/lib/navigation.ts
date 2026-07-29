@@ -10,6 +10,8 @@ const routeMatchers: Array<{
 }> = [
     { prefix: '/daily-entries', selected: 'data-entry' },
     { prefix: '/excel-imports', selected: 'data-entry' },
+    { prefix: '/hourly-dashboard', selected: 'hourly-dashboard', open: 'hourly' },
+    { prefix: '/hourly', selected: 'hourly-entry', open: 'hourly' },
     { prefix: '/dashboard/fuel', selected: 'fuel' },
     { prefix: '/monthly-plans', selected: 'monthly-plans' },
     { prefix: '/variance', selected: 'variance' },

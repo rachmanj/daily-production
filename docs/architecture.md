@@ -1,6 +1,6 @@
 # System Architecture — ARKA MineOps
 
-**Last Updated**: 2026-07-25
+**Last Updated**: 2026-07-29
 
 ## Project Overview
 
@@ -54,11 +54,13 @@ Users table includes optional unique `username` column (nullable; admins set via
 | Procurement | `/procurement`, `/api/procurement/*` | ✅ |
 | Notifications | `/notifications` + scheduled commands | ✅ |
 | PWA/Offline | IndexedDB + `/api/sync/*` | ✅ |
+| CCR Hourly | `/hourly`, `/hourly-dashboard`, `/api/hourly-*` | ✅ |
 
 ## Services
 
-- **CalculationService** — MTD/YTD/PTD, SR, FCR, Achievement %; Redis cache with invalidation on approve
+- **CalculationService** — MTD/YTD/PTD, SR, FCR, Achievement %; material DTD/MTD/hourly target; Redis cache with invalidation on approve
 - **DailyEntryService** — CRUD orchestration, UUID idempotency, workflow
+- **HourlyProductionService** — CCR hourly grid upsert, equipment grid, fleet status
 - **DashboardService** — KPI/trend/utilization aggregation
 - **PlanService** — Monthly plans, variance, loss contribution
 - **ProcurementApiService** — ARK-GS HTTP client, 6h Redis cache, mock fallback
@@ -67,9 +69,11 @@ Users table includes optional unique `username` column (nullable; admins set via
 - **AnomalyDetectionService** — FCR outlier detection (2σ)
 - **AiInsightService** — OpenRouter optional narrative
 
-## Database (20 tables)
+## Database (23 tables)
 
 Core: `sites`, `pits`, `shifts`, `daily_entries`, `production_records`, `fuel_records`, `equipment_deployments`, `site_info`, `monthly_plans`, `plan_targets`, `equipment_assignments`, `project_site_mappings`, `import_batches`, `notifications`
+
+CCR add-on: `hourly_production_records`, `material_daily_plans` (+ `equipment_assignments.material_type/equipment_role/display_order`)
 
 ## API Endpoints
 
@@ -78,6 +82,9 @@ GET  /api/dashboard/kpi|trend|utilization|per-pit|drilldown|fuel-by-equipment|co
 GET  /api/procurement/po-sent|grpo|npi|budget|all-projects
 POST /api/sync/daily-entries
 GET  /api/sync/status
+GET  /api/hourly/equipment-grid
+GET  /api/hourly-dashboard/kpi|heatmap|fleet|trend
+GET  /hourly/report/export?format=excel|pdf
 GET  /api/variance/data
 ```
 

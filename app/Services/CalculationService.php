@@ -3,8 +3,11 @@
 namespace App\Services;
 
 use App\Enums\EntryStatus;
+use App\Enums\MaterialType;
 use App\Enums\PlanMetric;
 use App\Models\FuelRecord;
+use App\Models\HourlyProductionRecord;
+use App\Models\MaterialDailyPlan;
 use App\Models\MonthlyPlan;
 use App\Models\PlanTarget;
 use App\Models\ProductionRecord;
@@ -215,6 +218,134 @@ class CalculationService
         return $this->dailyValue($siteId, $date, 'fuel_liters');
     }
 
+    public function materialDtd(int $siteId, Carbon $date, MaterialType $material): float
+    {
+        $key = "calc:material:dtd:{$siteId}:{$date->format('Y-m-d')}:{$material->value}";
+
+        return (float) Cache::remember($key, 3600, function () use ($siteId, $date, $material) {
+            return (float) HourlyProductionRecord::query()
+                ->where('material_type', $material->value)
+                ->whereHas('dailyEntry', fn ($q) => $q
+                    ->where('site_id', $siteId)
+                    ->whereDate('production_date', $date)
+                    ->where('status', EntryStatus::Approved))
+                ->sum('tonnage');
+        });
+    }
+
+    public function materialMtd(int $siteId, Carbon $date, MaterialType $material): float
+    {
+        $key = "calc:material:mtd:{$siteId}:{$date->format('Y-m')}:{$material->value}";
+
+        return (float) Cache::remember($key, 3600, function () use ($siteId, $date, $material) {
+            return (float) HourlyProductionRecord::query()
+                ->where('material_type', $material->value)
+                ->whereHas('dailyEntry', fn ($q) => $q
+                    ->where('site_id', $siteId)
+                    ->where('status', EntryStatus::Approved)
+                    ->whereBetween('production_date', [
+                        $date->copy()->startOfMonth()->toDateString(),
+                        $date->copy()->endOfMonth()->toDateString(),
+                    ]))
+                ->sum('tonnage');
+        });
+    }
+
+    public function hourlyTarget(int $siteId, Carbon $date, MaterialType $material): ?float
+    {
+        $key = "calc:material:hourly_target:{$siteId}:{$material->value}:{$date->format('Y-m')}";
+
+        return Cache::remember($key, 3600, function () use ($siteId, $date, $material) {
+            $plan = MaterialDailyPlan::query()
+                ->where('site_id', $siteId)
+                ->where('material_type', $material->value)
+                ->where('year', $date->year)
+                ->where('month', $date->month)
+                ->first();
+
+            if (! $plan || (float) $plan->operating_hours_per_day <= 0) {
+                return null;
+            }
+
+            return round((float) $plan->daily_plan_tonnage / (float) $plan->operating_hours_per_day, 2);
+        });
+    }
+
+    public function materialPlanDaily(int $siteId, Carbon $date, MaterialType $material): ?float
+    {
+        $plan = MaterialDailyPlan::query()
+            ->where('site_id', $siteId)
+            ->where('material_type', $material->value)
+            ->where('year', $date->year)
+            ->where('month', $date->month)
+            ->first();
+
+        return $plan ? (float) $plan->daily_plan_tonnage : null;
+    }
+
+    public function materialPlanMonthly(int $siteId, Carbon $date, MaterialType $material): ?float
+    {
+        $plan = MaterialDailyPlan::query()
+            ->where('site_id', $siteId)
+            ->where('material_type', $material->value)
+            ->where('year', $date->year)
+            ->where('month', $date->month)
+            ->first();
+
+        return $plan ? (float) $plan->monthly_plan_tonnage : null;
+    }
+
+    /**
+     * @return array{hour_slot: int, tonnage: float}|null
+     */
+    public function currentHourProduction(int $siteId, Carbon $date, MaterialType $material): ?array
+    {
+        $record = HourlyProductionRecord::query()
+            ->where('material_type', $material->value)
+            ->whereHas('dailyEntry', fn ($q) => $q
+                ->where('site_id', $siteId)
+                ->whereDate('production_date', $date)
+                ->where('status', EntryStatus::Approved))
+            ->orderByDesc('hour_slot')
+            ->first();
+
+        if (! $record) {
+            return null;
+        }
+
+        return [
+            'hour_slot' => (int) $record->hour_slot,
+            'tonnage' => (float) $record->tonnage,
+        ];
+    }
+
+    /**
+     * @return array<int, array{hour_slot: int, total: float}>
+     */
+    public function hourlyShiftTotals(int $siteId, Carbon $date, MaterialType $material, ?int $shiftId = null): array
+    {
+        $query = HourlyProductionRecord::query()
+            ->selectRaw('hour_slot, COALESCE(SUM(tonnage), 0) as total')
+            ->where('material_type', $material->value)
+            ->whereHas('dailyEntry', fn ($q) => $q
+                ->where('site_id', $siteId)
+                ->whereDate('production_date', $date)
+                ->where('status', EntryStatus::Approved))
+            ->groupBy('hour_slot')
+            ->orderBy('hour_slot');
+
+        if ($shiftId !== null) {
+            $query->where('shift_id', $shiftId);
+        }
+
+        return $query->get()
+            ->map(fn ($row) => [
+                'hour_slot' => (int) $row->hour_slot,
+                'total' => (float) $row->total,
+            ])
+            ->all();
+    }
+
     public function invalidateSiteCache(int $siteId, Carbon $date): void
     {
         $patterns = [
@@ -233,6 +364,12 @@ class CalculationService
         }
         Cache::forget("calc:trend:{$siteId}:{$date->toDateString()}:30");
         Cache::forget("calc:perpit:{$siteId}:{$date->toDateString()}");
+
+        foreach (MaterialType::cases() as $material) {
+            Cache::forget("calc:material:dtd:{$siteId}:{$date->format('Y-m-d')}:{$material->value}");
+            Cache::forget("calc:material:mtd:{$siteId}:{$date->format('Y-m')}:{$material->value}");
+            Cache::forget("calc:material:hourly_target:{$siteId}:{$material->value}:{$date->format('Y-m')}");
+        }
     }
 
     protected function sumMetricForPeriod(int $siteId, Carbon $from, Carbon $to, string $metric): float

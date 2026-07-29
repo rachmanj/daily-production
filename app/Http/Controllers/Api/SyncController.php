@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\MaterialType;
 use App\Http\Controllers\Controller;
 use App\Models\DailyEntry;
 use App\Services\DailyEntryService;
+use App\Services\HourlyProductionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,6 +14,7 @@ class SyncController extends Controller
 {
     public function __construct(
         protected DailyEntryService $dailyEntryService,
+        protected HourlyProductionService $hourlyProductionService,
     ) {}
 
     public function dailyEntries(Request $request): JsonResponse
@@ -25,6 +28,10 @@ class SyncController extends Controller
             'entries.*.fuel' => ['nullable', 'array'],
             'entries.*.deployments' => ['nullable', 'array'],
             'entries.*.site_info' => ['nullable', 'array'],
+            'entries.*.hourly' => ['nullable', 'array'],
+            'entries.*.hourly.material_type' => ['nullable', 'string'],
+            'entries.*.hourly.shift_id' => ['nullable', 'integer'],
+            'entries.*.hourly.records' => ['nullable', 'array'],
         ]);
 
         $results = [];
@@ -46,6 +53,14 @@ class SyncController extends Controller
             }
             if (! empty($entryData['site_info'])) {
                 $this->dailyEntryService->upsertSiteInfo($entry, $entryData['site_info']);
+            }
+            if (! empty($entryData['hourly']['records'])) {
+                $this->hourlyProductionService->upsertHourlyRecords(
+                    $entry,
+                    MaterialType::from($entryData['hourly']['material_type'] ?? MaterialType::Limestone->value),
+                    (int) ($entryData['hourly']['shift_id'] ?? 1),
+                    $entryData['hourly']['records'],
+                );
             }
 
             $results[] = [

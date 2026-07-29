@@ -18,6 +18,8 @@ class DatabaseSeeder extends Seeder
             FuelPriceSeeder::class,
             ProjectSiteMappingSeeder::class,
             EquipmentAssignmentSeeder::class,
+            CcrEquipmentSeeder::class,
+            MaterialDailyPlanSeeder::class,
             MonthlyPlanSeeder::class,
             DemoDataSeeder::class,
         ]);

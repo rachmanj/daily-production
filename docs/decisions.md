@@ -1,9 +1,19 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-07-23
+**Last Updated**: 2026-07-29
 
 # Technical Decision Records
 
 ## Recent Decisions
+
+### Decision: CCR Hourly — Reuse daily_entries Header — 2026-07-29
+
+**Context**: CCR Google Sheets track production per jam per alat (Limestone/Shalestone). Need minimal schema add-on.
+
+**Decision**: Reuse `daily_entries` as header; store hourly cells in `hourly_production_records`; plan in `material_daily_plans`; extend `equipment_assignments` for column mapping.
+
+**Rationale**: Gets workflow, PWA sync, and approve invalidation for free. OB/Coal stream unchanged — material is parallel child table.
+
+---
 
 ### Decision: REST API for External Integrations — 2026-07-23
 

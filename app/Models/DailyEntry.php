@@ -72,4 +72,9 @@ class DailyEntry extends Model
     {
         return $this->hasOne(SiteInfo::class);
     }
+
+    public function hourlyProductionRecords(): HasMany
+    {
+        return $this->hasMany(HourlyProductionRecord::class);
+    }
 }

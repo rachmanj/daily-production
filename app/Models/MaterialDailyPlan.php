@@ -6,33 +6,31 @@ use App\Enums\MaterialType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EquipmentAssignment extends Model
+class MaterialDailyPlan extends Model
 {
     /**
      * @var list<string>
      */
     protected $fillable = [
-        'equipment_id',
-        'unit_code',
-        'description',
-        'plant_type_name',
-        'project_code',
         'site_id',
-        'pit_id',
         'material_type',
-        'equipment_role',
-        'display_order',
-        'is_active_for_tracking',
-        'synced_at',
+        'year',
+        'month',
+        'daily_plan_tonnage',
+        'monthly_plan_tonnage',
+        'operating_hours_per_day',
+        'created_by',
     ];
 
     protected function casts(): array
     {
         return [
             'material_type' => MaterialType::class,
-            'display_order' => 'integer',
-            'is_active_for_tracking' => 'boolean',
-            'synced_at' => 'datetime',
+            'year' => 'integer',
+            'month' => 'integer',
+            'daily_plan_tonnage' => 'decimal:2',
+            'monthly_plan_tonnage' => 'decimal:2',
+            'operating_hours_per_day' => 'decimal:2',
         ];
     }
 
@@ -41,8 +39,8 @@ class EquipmentAssignment extends Model
         return $this->belongsTo(Site::class);
     }
 
-    public function pit(): BelongsTo
+    public function creator(): BelongsTo
     {
-        return $this->belongsTo(Pit::class);
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

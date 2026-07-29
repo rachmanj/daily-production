@@ -1,11 +1,13 @@
 import axios from 'axios';
 import {
     deleteDraft,
+    deleteDraftHourly,
     enqueueSync,
     getPendingSyncCount,
     getSyncQueue,
     removeSyncItem,
     type DraftEntry,
+    type DraftHourly,
     type SyncQueueItem,
 } from './db';
 
@@ -19,6 +21,21 @@ export async function queueDraftForSync(entry: DraftEntry): Promise<string> {
         id,
         uuid: entry.uuid,
         payload: entry,
+        type: 'daily',
+        created_at: new Date().toISOString(),
+        attempts: 0,
+    };
+    await enqueueSync(item);
+    return id;
+}
+
+export async function queueHourlyDraftForSync(entry: DraftHourly): Promise<string> {
+    const id = generateId();
+    const item: SyncQueueItem = {
+        id,
+        uuid: entry.uuid,
+        payload: entry,
+        type: 'hourly',
         created_at: new Date().toISOString(),
         attempts: 0,
     };
@@ -35,20 +52,43 @@ export async function flushSyncQueue(): Promise<{ synced: number; failed: number
         return { synced, failed };
     }
 
+    const dailyEntries = queue
+        .filter((item) => item.type === 'daily')
+        .map((item) => {
+            const payload = item.payload as DraftEntry;
+            return {
+                uuid: payload.uuid,
+                production_date: payload.production_date,
+                site_id: payload.site_id,
+                production: payload.production,
+                fuel: payload.fuel,
+                deployments: payload.deployments,
+                site_info: payload.site_info,
+            };
+        });
+
+    const hourlyEntries = queue
+        .filter((item) => item.type === 'hourly')
+        .map((item) => {
+            const payload = item.payload as DraftHourly;
+            return {
+                uuid: payload.uuid,
+                production_date: payload.production_date,
+                site_id: payload.site_id,
+                hourly: {
+                    material_type: payload.material_type,
+                    shift_id: payload.shift_id,
+                    records: payload.records,
+                },
+            };
+        });
+
+    const allEntries = [...dailyEntries, ...hourlyEntries];
+
     try {
         const response = await axios.post(
             '/api/sync/daily-entries',
-            {
-                entries: queue.map((item) => ({
-                    uuid: item.payload.uuid,
-                    production_date: item.payload.production_date,
-                    site_id: item.payload.site_id,
-                    production: item.payload.production,
-                    fuel: item.payload.fuel,
-                    deployments: item.payload.deployments,
-                    site_info: item.payload.site_info,
-                })),
-            },
+            { entries: allEntries },
             { withCredentials: true },
         );
 
@@ -58,7 +98,11 @@ export async function flushSyncQueue(): Promise<{ synced: number; failed: number
             const result = results.find((r) => r.uuid === item.uuid);
             if (result?.synced) {
                 await removeSyncItem(item.id);
-                await deleteDraft(item.uuid);
+                if (item.type === 'hourly') {
+                    await deleteDraftHourly(item.uuid);
+                } else {
+                    await deleteDraft(item.uuid);
+                }
                 synced++;
             } else {
                 failed++;

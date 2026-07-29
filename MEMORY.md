@@ -1,5 +1,5 @@
 **Purpose**: AI's persistent knowledge base for project context and learnings
-**Last Updated**: 2026-07-25
+**Last Updated**: 2026-07-29
 
 ## Memory Maintenance Guidelines
 
@@ -19,6 +19,14 @@
 ---
 
 ## Project Memory Entries
+
+### [009] CCR Hourly Module — Material Stream Parallel to OB/Coal (2026-07-29) ✅ COMPLETE
+
+**Decision**: Add `hourly_production_records` + `material_daily_plans` as child of existing `daily_entries`; reuse draft→submit→approve workflow.
+
+**Solution**: `MaterialType` enum; `HourlyProductionService` upsert via unique `(daily_entry_id, equipment_id, material_type, hour_slot)`; `CalculationService::materialDtd/Mtd/hourlyTarget`; IndexedDB `draftHourly` store (DB v2).
+
+**Key Learning**: CCR sites 021C/025C equipment columns come from `equipment_assignments` with `material_type` + `display_order` — no hardcoded unit list in frontend.
 
 ### [008] Consolidated Report — Multi-Site Period Rollup (2026-07-25) ✅ COMPLETE
 

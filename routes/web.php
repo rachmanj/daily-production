@@ -9,6 +9,8 @@ use App\Http\Controllers\ExcelImportController;
 use App\Http\Controllers\FuelPriceController;
 use App\Http\Controllers\FuelRecordController;
 use App\Http\Controllers\FuelTypeController;
+use App\Http\Controllers\HourlyDashboardController;
+use App\Http\Controllers\HourlyEntryController;
 use App\Http\Controllers\MonthlyPlanController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PitController;
@@ -47,6 +49,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/daily-entries/{dailyEntry}/fuel', [FuelRecordController::class, 'update'])->name('fuel-records.update');
     Route::put('/daily-entries/{dailyEntry}/deployment', [EquipmentDeploymentController::class, 'update'])->name('equipment-deployments.update');
     Route::put('/daily-entries/{dailyEntry}/site-info', [SiteInfoController::class, 'update'])->name('site-info.update');
+
+    // CCR Hourly
+    Route::get('/hourly', [HourlyEntryController::class, 'index'])->name('hourly.index');
+    Route::get('/hourly/create', [HourlyEntryController::class, 'create'])->name('hourly.create');
+    Route::post('/hourly', [HourlyEntryController::class, 'store'])->name('hourly.store');
+    Route::get('/hourly/{dailyEntry}/edit', [HourlyEntryController::class, 'edit'])->name('hourly.edit');
+    Route::put('/hourly/{dailyEntry}', [HourlyEntryController::class, 'update'])->name('hourly.update');
+    Route::get('/hourly-dashboard', [HourlyDashboardController::class, 'index'])->name('hourly-dashboard.index');
+    Route::get('/hourly/report/export', [HourlyDashboardController::class, 'export'])->name('hourly.report.export');
 
     // Excel Import
     Route::get('/excel-imports/create', [ExcelImportController::class, 'create'])->name('excel-imports.create');

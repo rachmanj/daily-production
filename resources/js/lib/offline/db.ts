@@ -11,10 +11,27 @@ export interface DraftEntry {
     updated_at: string;
 }
 
+export interface DraftHourly {
+    uuid: string;
+    daily_entry_id?: number;
+    site_id: number;
+    production_date: string;
+    material_type: string;
+    shift_id: number;
+    records: Array<{
+        equipment_id: number;
+        hour_slot: number;
+        tonnage: number;
+        unit_code?: string;
+    }>;
+    updated_at: string;
+}
+
 export interface SyncQueueItem {
     id: string;
     uuid: string;
-    payload: DraftEntry;
+    payload: DraftEntry | DraftHourly;
+    type: 'daily' | 'hourly';
     created_at: string;
     attempts: number;
 }
@@ -25,6 +42,11 @@ interface MineOpsDB extends DBSchema {
         value: DraftEntry;
         indexes: { 'by-date': string };
     };
+    draftHourly: {
+        key: string;
+        value: DraftHourly;
+        indexes: { 'by-date': string };
+    };
     syncQueue: {
         key: string;
         value: SyncQueueItem;
@@ -33,19 +55,26 @@ interface MineOpsDB extends DBSchema {
 }
 
 const DB_NAME = 'arka-mineops';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<MineOpsDB>> | null = null;
 
 function getDb(): Promise<IDBPDatabase<MineOpsDB>> {
     if (!dbPromise) {
         dbPromise = openDB<MineOpsDB>(DB_NAME, DB_VERSION, {
-            upgrade(db) {
-                const drafts = db.createObjectStore('draftEntries', { keyPath: 'uuid' });
-                drafts.createIndex('by-date', 'production_date');
+            upgrade(db, oldVersion) {
+                if (oldVersion < 1) {
+                    const drafts = db.createObjectStore('draftEntries', { keyPath: 'uuid' });
+                    drafts.createIndex('by-date', 'production_date');
 
-                const queue = db.createObjectStore('syncQueue', { keyPath: 'id' });
-                queue.createIndex('by-created', 'created_at');
+                    const queue = db.createObjectStore('syncQueue', { keyPath: 'id' });
+                    queue.createIndex('by-created', 'created_at');
+                }
+
+                if (oldVersion < 2) {
+                    const hourly = db.createObjectStore('draftHourly', { keyPath: 'uuid' });
+                    hourly.createIndex('by-date', 'production_date');
+                }
             },
         });
     }
@@ -71,6 +100,26 @@ export async function getAllDrafts(): Promise<DraftEntry[]> {
 export async function deleteDraft(uuid: string): Promise<void> {
     const db = await getDb();
     await db.delete('draftEntries', uuid);
+}
+
+export async function saveDraftHourly(entry: DraftHourly): Promise<void> {
+    const db = await getDb();
+    await db.put('draftHourly', { ...entry, updated_at: new Date().toISOString() });
+}
+
+export async function getDraftHourly(uuid: string): Promise<DraftHourly | undefined> {
+    const db = await getDb();
+    return db.get('draftHourly', uuid);
+}
+
+export async function getAllDraftHourly(): Promise<DraftHourly[]> {
+    const db = await getDb();
+    return db.getAll('draftHourly');
+}
+
+export async function deleteDraftHourly(uuid: string): Promise<void> {
+    const db = await getDb();
+    await db.delete('draftHourly', uuid);
 }
 
 export async function enqueueSync(item: SyncQueueItem): Promise<void> {

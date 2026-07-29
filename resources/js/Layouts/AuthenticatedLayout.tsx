@@ -5,6 +5,7 @@ import SiteSelector from '@/Components/SiteSelector';
 import ThemeToggle from '@/Components/ThemeToggle';
 import {
     AimOutlined,
+    ClockCircleOutlined,
     DashboardOutlined,
     EllipsisOutlined,
     FileTextOutlined,
@@ -79,6 +80,21 @@ export default function AuthenticatedLayout({
                 key: 'data-entry',
                 icon: <FormOutlined />,
                 label: <Link href={route('daily-entries.index')} onClick={() => setMobileDrawerOpen(false)}>Daily Entry</Link>,
+            },
+            {
+                key: 'hourly',
+                icon: <ClockCircleOutlined />,
+                label: 'CCR Hourly',
+                children: [
+                    {
+                        key: 'hourly-entry',
+                        label: <Link href={route('hourly.index')} onClick={() => setMobileDrawerOpen(false)}>Hourly Entry</Link>,
+                    },
+                    {
+                        key: 'hourly-dashboard',
+                        label: <Link href={route('hourly-dashboard.index')} onClick={() => setMobileDrawerOpen(false)}>CCR Dashboard</Link>,
+                    },
+                ],
             },
             {
                 key: 'fuel',
