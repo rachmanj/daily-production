@@ -1,9 +1,10 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import ThemeToggle from '@/Components/ThemeToggle';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Alert, Button, Card, Checkbox, Form, Input, Typography, theme } from 'antd';
+import { Alert, Button, Card, Checkbox, Form, Grid, Input, Typography, theme } from 'antd';
 
 const { Title, Paragraph } = Typography;
+const { useBreakpoint } = Grid;
 
 export default function Login({
     status,
@@ -13,6 +14,9 @@ export default function Login({
     canResetPassword: boolean;
 }) {
     const { token } = theme.useToken();
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
+
     const { data, setData, post, processing, errors, reset } = useForm({
         login: '',
         password: '',
@@ -30,23 +34,47 @@ export default function Login({
             <Head title="Log in" />
 
             <div
-                className="relative flex min-h-screen flex-col items-center justify-center p-6 md:p-12"
-                style={{ background: token.colorBgLayout }}
+                className="relative flex min-h-dvh items-center justify-center overflow-y-auto"
+                style={{
+                    background: token.colorBgLayout,
+                    padding: isMobile ? '16px 20px' : '48px 24px',
+                }}
             >
-                <div className="absolute right-4 top-4 md:right-8 md:top-8">
+                <div
+                    className="absolute z-10"
+                    style={{
+                        right: isMobile ? 16 : 32,
+                        top: isMobile ? 16 : 32,
+                    }}
+                >
                     <ThemeToggle />
                 </div>
 
-                <div className="w-full max-w-md">
-                    <div className="mb-8 text-center">
+                <div
+                    className="mx-auto w-full"
+                    style={{ maxWidth: isMobile ? 'min(90vw, 400px)' : 400 }}
+                >
+                    <div className="text-center" style={{ marginBottom: isMobile ? 20 : 32 }}>
                         <ApplicationLogo
-                            className="mx-auto mb-4 h-16 w-16 fill-current"
-                            style={{ color: token.colorPrimary }}
+                            className="mx-auto fill-current"
+                            style={{
+                                color: token.colorPrimary,
+                                width: isMobile ? 48 : 64,
+                                height: isMobile ? 48 : 64,
+                                marginBottom: isMobile ? 12 : 16,
+                            }}
                         />
-                        <Title level={3} style={{ margin: 0 }}>
+                        <Title level={isMobile ? 4 : 3} style={{ margin: 0 }}>
                             ARKA MineOps
                         </Title>
-                        <Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 8 }}>
+                        <Paragraph
+                            type="secondary"
+                            style={{
+                                marginBottom: 0,
+                                marginTop: isMobile ? 4 : 8,
+                                fontSize: isMobile ? 13 : 14,
+                            }}
+                        >
                             Sistem Manajemen Operasional Tambang
                         </Paragraph>
                     </div>
@@ -56,11 +84,19 @@ export default function Login({
                             borderRadius: token.borderRadiusLG,
                             boxShadow: token.boxShadowSecondary,
                         }}
+                        styles={{
+                            body: {
+                                padding: isMobile ? '20px 16px' : 24,
+                            },
+                        }}
                     >
-                        <Title level={4} style={{ marginBottom: 4 }}>
+                        <Title level={isMobile ? 5 : 4} style={{ marginBottom: 4 }}>
                             Masuk
                         </Title>
-                        <Paragraph type="secondary" style={{ marginBottom: 24 }}>
+                        <Paragraph
+                            type="secondary"
+                            style={{ marginBottom: isMobile ? 20 : 24, fontSize: isMobile ? 13 : 14 }}
+                        >
                             Gunakan email atau username untuk masuk ke akun Anda.
                         </Paragraph>
 
@@ -103,7 +139,9 @@ export default function Login({
                                 />
                             </Form.Item>
 
-                            <div className="mb-6 flex items-center justify-between">
+                            <div
+                                className={`mb-6 flex ${isMobile ? 'flex-col items-start gap-3' : 'items-center justify-between'}`}
+                            >
                                 <Checkbox
                                     checked={data.remember}
                                     onChange={(e) => setData('remember', e.target.checked)}
