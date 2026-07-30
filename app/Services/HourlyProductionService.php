@@ -129,6 +129,26 @@ class HourlyProductionService
     }
 
     /**
+     * @return array<int, array{material_type: string, material_label: string, total_tonnage: float, hours_filled: int}>
+     */
+    public function getDailyTotals(DailyEntry $entry): array
+    {
+        return HourlyProductionRecord::query()
+            ->where('daily_entry_id', $entry->id)
+            ->selectRaw('material_type, SUM(tonnage) as total_tonnage, COUNT(DISTINCT hour_slot) as hours_filled')
+            ->groupBy('material_type')
+            ->get()
+            ->map(fn ($row) => [
+                'material_type' => $row->material_type->value,
+                'material_label' => $row->material_type->label(),
+                'total_tonnage' => (float) $row->total_tonnage,
+                'hours_filled' => (int) $row->hours_filled,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<string, int>
      */
     public function getFleetStatus(int $siteId, MaterialType $material): array

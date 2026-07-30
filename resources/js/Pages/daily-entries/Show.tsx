@@ -6,11 +6,12 @@ import type {
     DailyEntry,
     EquipmentAssignment,
     FuelTypeOption,
+    HourlyTotal,
     PitOption,
     ShiftOption,
 } from '@/types/daily-entry';
 import { Head, Link, router } from '@inertiajs/react';
-import { Button, Card, Descriptions, Space } from 'antd';
+import { Button, Card, Descriptions, Space, Tag } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 
 interface ShowProps {
@@ -21,6 +22,8 @@ interface ShowProps {
     equipmentAssignments: EquipmentAssignment[];
     productionActivities: Record<string, string>;
     fuelCategories: Record<string, string>;
+    ccrEnabled?: boolean;
+    hourlyTotals?: HourlyTotal[] | null;
 }
 
 export default function Show({
@@ -31,6 +34,8 @@ export default function Show({
     equipmentAssignments,
     productionActivities,
     fuelCategories,
+    ccrEnabled,
+    hourlyTotals,
 }: ShowProps) {
     return (
         <AuthenticatedLayout title={`Entry — ${formatDate(entry.production_date)}`}>
@@ -49,6 +54,21 @@ export default function Show({
                     <Descriptions.Item label="Dibuat Oleh">{entry.creator?.name}</Descriptions.Item>
                     {entry.approver && (
                         <Descriptions.Item label="Disetujui Oleh">{entry.approver.name}</Descriptions.Item>
+                    )}
+                    {ccrEnabled && hourlyTotals && hourlyTotals.length > 0 && (
+                        <Descriptions.Item label="Total Hourly (CCR)">
+                            <Space wrap size={[4, 4]}>
+                                {hourlyTotals
+                                    .filter((t) => t.total_tonnage > 0)
+                                    .map((t) => (
+                                        <Tag key={t.material_type}>
+                                            {t.material_label}:{' '}
+                                            {t.total_tonnage.toLocaleString('id-ID', { maximumFractionDigits: 0 })}{' '}
+                                            ton
+                                        </Tag>
+                                    ))}
+                            </Space>
+                        </Descriptions.Item>
                     )}
                 </Descriptions>
                 <Space style={{ marginTop: 16 }}>
@@ -90,6 +110,8 @@ export default function Show({
                 fuelCategories={fuelCategories}
                 projectCode={entry.site?.code}
                 readOnly
+                ccrEnabled={ccrEnabled}
+                hourlyTotals={hourlyTotals}
             />
         </AuthenticatedLayout>
     );

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\EntryStatus;
 use App\Enums\FuelUsageCategory;
+use App\Enums\MaterialType;
 use App\Enums\ProductionActivity;
 use App\Http\Requests\StoreDailyEntryRequest;
 use App\Models\DailyEntry;
@@ -12,7 +13,10 @@ use App\Models\FuelType;
 use App\Models\Pit;
 use App\Models\Shift;
 use App\Models\Site;
+use App\Services\CalculationService;
 use App\Services\DailyEntryService;
+use App\Services\HourlyProductionService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +26,8 @@ class DailyEntryController extends Controller
 {
     public function __construct(
         protected DailyEntryService $dailyEntryService,
+        protected HourlyProductionService $hourlyProductionService,
+        protected CalculationService $calculationService,
     ) {}
 
     public function index(Request $request): Response
@@ -120,6 +126,7 @@ class DailyEntryController extends Controller
         ]);
 
         $siteId = $dailyEntry->site_id;
+        $ccrEnabled = in_array($dailyEntry->site->code, config('mineops.ccr_site_codes'), true);
 
         return [
             'entry' => $dailyEntry,
@@ -141,6 +148,30 @@ class DailyEntryController extends Controller
             'productionActivities' => ProductionActivity::options(),
             'fuelCategories' => FuelUsageCategory::options(),
             'statuses' => EntryStatus::options(),
+            'ccrEnabled' => $ccrEnabled,
+            'hourlyTotals' => $ccrEnabled ? $this->buildHourlyTotals($dailyEntry) : null,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function buildHourlyTotals(DailyEntry $dailyEntry): array
+    {
+        $date = Carbon::parse($dailyEntry->production_date);
+
+        return collect($this->hourlyProductionService->getDailyTotals($dailyEntry))
+            ->map(function (array $row) use ($dailyEntry, $date) {
+                $material = MaterialType::from($row['material_type']);
+                $plan = $this->calculationService->materialPlanDaily($dailyEntry->site_id, $date, $material);
+
+                return [
+                    ...$row,
+                    'daily_plan' => $plan,
+                    'achievement' => $plan ? $this->calculationService->achievement($row['total_tonnage'], $plan) : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

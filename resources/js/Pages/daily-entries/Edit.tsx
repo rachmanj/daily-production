@@ -8,11 +8,12 @@ import type {
     DailyEntry,
     EquipmentAssignment,
     FuelTypeOption,
+    HourlyTotal,
     PitOption,
     ShiftOption,
 } from '@/types/daily-entry';
 import { Head, router } from '@inertiajs/react';
-import { Button, Card, Descriptions, Space } from 'antd';
+import { Button, Card, Descriptions, Space, Tag } from 'antd';
 import { useEffect, useState } from 'react';
 
 interface EditProps {
@@ -23,6 +24,8 @@ interface EditProps {
     equipmentAssignments: EquipmentAssignment[];
     productionActivities: Record<string, string>;
     fuelCategories: Record<string, string>;
+    ccrEnabled?: boolean;
+    hourlyTotals?: HourlyTotal[] | null;
 }
 
 export default function Edit({
@@ -33,6 +36,8 @@ export default function Edit({
     equipmentAssignments,
     productionActivities,
     fuelCategories,
+    ccrEnabled,
+    hourlyTotals,
 }: EditProps) {
     const [isMobile, setIsMobile] = useState(false);
     const readOnly = entry.status !== 'draft';
@@ -58,6 +63,21 @@ export default function Edit({
                     <Descriptions.Item label="Status">
                         <StatusBadge status={entry.status} />
                     </Descriptions.Item>
+                    {ccrEnabled && hourlyTotals && hourlyTotals.length > 0 && (
+                        <Descriptions.Item label="Total Hourly (CCR)">
+                            <Space wrap size={[4, 4]}>
+                                {hourlyTotals
+                                    .filter((t) => t.total_tonnage > 0)
+                                    .map((t) => (
+                                        <Tag key={t.material_type}>
+                                            {t.material_label}:{' '}
+                                            {t.total_tonnage.toLocaleString('id-ID', { maximumFractionDigits: 0 })}{' '}
+                                            ton
+                                        </Tag>
+                                    ))}
+                            </Space>
+                        </Descriptions.Item>
+                    )}
                     <Descriptions.Item label="Aksi">
                         <Space>
                             <SyncButton />
@@ -83,6 +103,8 @@ export default function Edit({
                     productionActivities={productionActivities}
                     fuelCategories={fuelCategories}
                     projectCode={entry.site?.code}
+                    ccrEnabled={ccrEnabled}
+                    hourlyTotals={hourlyTotals}
                 />
             ) : (
                 <EntryTabs
@@ -95,6 +117,8 @@ export default function Edit({
                     fuelCategories={fuelCategories}
                     projectCode={entry.site?.code}
                     readOnly={readOnly}
+                    ccrEnabled={ccrEnabled}
+                    hourlyTotals={hourlyTotals}
                 />
             )}
         </AuthenticatedLayout>

@@ -12,6 +12,7 @@ use App\Models\Site;
 use App\Services\CalculationService;
 use App\Services\HourlyProductionService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,8 +20,6 @@ use Inertia\Response;
 
 class HourlyEntryController extends Controller
 {
-    private const CCR_SITE_CODES = ['021C', '025C'];
-
     public function __construct(
         protected HourlyProductionService $hourlyProductionService,
         protected CalculationService $calculationService,
@@ -31,7 +30,7 @@ class HourlyEntryController extends Controller
         $this->authorize('viewAny', DailyEntry::class);
 
         $ccrSiteIds = Site::query()
-            ->whereIn('code', self::CCR_SITE_CODES)
+            ->whereIn('code', config('mineops.ccr_site_codes'))
             ->pluck('id');
 
         $query = DailyEntry::query()
@@ -59,7 +58,7 @@ class HourlyEntryController extends Controller
         return Inertia::render('hourly/Index', [
             'entries' => $query->paginate(20)->withQueryString(),
             'filters' => $request->only(['site_id', 'status', 'material_type', 'date_from', 'date_to']),
-            'sites' => Site::query()->whereIn('code', self::CCR_SITE_CODES)->orderBy('code')->get(['id', 'code', 'name']),
+            'sites' => Site::query()->whereIn('code', config('mineops.ccr_site_codes'))->orderBy('code')->get(['id', 'code', 'name']),
             'statuses' => EntryStatus::options(),
             'materials' => MaterialType::options(),
         ]);
@@ -70,7 +69,7 @@ class HourlyEntryController extends Controller
         $this->authorize('create', DailyEntry::class);
 
         return Inertia::render('hourly/Create', [
-            'sites' => Site::query()->whereIn('code', self::CCR_SITE_CODES)->orderBy('code')->get(['id', 'code', 'name']),
+            'sites' => Site::query()->whereIn('code', config('mineops.ccr_site_codes'))->orderBy('code')->get(['id', 'code', 'name']),
             'shifts' => Shift::query()->orderBy('id')->get(['id', 'name', 'start_time', 'end_time']),
             'materials' => MaterialType::options(),
         ]);
@@ -122,7 +121,7 @@ class HourlyEntryController extends Controller
         ]);
     }
 
-    public function update(UpdateHourlyRecordsRequest $request, DailyEntry $dailyEntry): RedirectResponse|\Illuminate\Http\JsonResponse
+    public function update(UpdateHourlyRecordsRequest $request, DailyEntry $dailyEntry): RedirectResponse|JsonResponse
     {
         $this->authorize('update', $dailyEntry);
 

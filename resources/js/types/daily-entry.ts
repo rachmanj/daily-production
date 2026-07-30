@@ -68,6 +68,15 @@ export interface SiteInfo {
     fuel_stock_liters?: number | null;
 }
 
+export interface HourlyTotal {
+    material_type: string;
+    material_label: string;
+    total_tonnage: number;
+    hours_filled: number;
+    daily_plan: number | null;
+    achievement: number | null;
+}
+
 export interface EquipmentAssignment {
     id: number;
     equipment_id: number;
@@ -76,6 +85,10 @@ export interface EquipmentAssignment {
     plant_type_name?: string;
     project_code?: string;
     pit_id?: number;
+    material_type?: string | null;
+    equipment_role?: string | null;
+    display_order?: number | null;
+    is_active_for_tracking?: boolean;
 }
 
 export interface EquipmentSearchResult {

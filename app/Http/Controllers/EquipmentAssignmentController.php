@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\MaterialType;
 use App\Http\Requests\AssignEquipmentRequest;
+use App\Http\Requests\UpdateEquipmentAssignmentRequest;
 use App\Models\EquipmentAssignment;
 use App\Models\Pit;
 use App\Services\EquipmentApiService;
@@ -36,6 +38,9 @@ class EquipmentAssignmentController extends Controller
                 'project_code' => $a->project_code,
                 'pit_code' => $a->pit?->code,
                 'pit_id' => $a->pit_id,
+                'material_type' => $a->material_type?->value,
+                'equipment_role' => $a->equipment_role,
+                'display_order' => $a->display_order,
                 'is_active_for_tracking' => $a->is_active_for_tracking,
             ]);
 
@@ -49,6 +54,7 @@ class EquipmentAssignmentController extends Controller
             'assignments' => $assignments,
             'pits' => $pits,
             'plantTypes' => ['Digger', 'Hauler', 'Support', 'Heavy Equip'],
+            'materialOptions' => MaterialType::options(),
         ]);
     }
 
@@ -94,6 +100,21 @@ class EquipmentAssignmentController extends Controller
 
         return redirect()->route('equipment-assignments.index')
             ->with('success', 'Equipment berhasil di-assign ke PIT.');
+    }
+
+    public function update(UpdateEquipmentAssignmentRequest $request, EquipmentAssignment $equipmentAssignment): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $equipmentAssignment->update([
+            'material_type' => $validated['material_type'] ?? null,
+            'equipment_role' => $validated['equipment_role'] ?? null,
+            'display_order' => $validated['display_order'] ?? null,
+            'is_active_for_tracking' => $validated['is_active_for_tracking'],
+        ]);
+
+        return redirect()->route('equipment-assignments.index')
+            ->with('success', 'Klasifikasi CCR equipment berhasil disimpan.');
     }
 
     public function destroy(EquipmentAssignment $equipmentAssignment): RedirectResponse

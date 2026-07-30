@@ -1,11 +1,13 @@
 import DeploymentForm, { type DeploymentRow } from '@/Components/entry/DeploymentForm';
 import FuelForm, { type FuelRow } from '@/Components/entry/FuelForm';
+import HourlySummaryTab from '@/Components/entry/HourlySummaryTab';
 import ProductionForm, { type ProductionRow } from '@/Components/entry/ProductionForm';
 import SiteInfoForm from '@/Components/entry/SiteInfoForm';
 import type {
     DailyEntry,
     EquipmentAssignment,
     FuelTypeOption,
+    HourlyTotal,
     PitOption,
     ShiftOption,
     SiteInfo,
@@ -23,9 +25,11 @@ interface EntryWizardProps {
     productionActivities: Record<string, string>;
     fuelCategories: Record<string, string>;
     projectCode?: string;
+    ccrEnabled?: boolean;
+    hourlyTotals?: HourlyTotal[] | null;
 }
 
-const STEPS = [
+const BASE_STEPS = [
     { title: 'Produksi', key: 'production' },
     { title: 'Fuel', key: 'fuel' },
     { title: 'Deployment', key: 'deployment' },
@@ -41,7 +45,12 @@ export default function EntryWizard({
     productionActivities,
     fuelCategories,
     projectCode,
+    ccrEnabled,
+    hourlyTotals,
 }: EntryWizardProps) {
+    const steps = ccrEnabled
+        ? [...BASE_STEPS, { title: 'CCR Hourly', key: 'ccr-hourly' }]
+        : BASE_STEPS;
     const [current, setCurrent] = useState(0);
     const [production, setProduction] = useState<ProductionRow[]>([]);
     const [fuel, setFuel] = useState<FuelRow[]>([]);
@@ -50,8 +59,15 @@ export default function EntryWizard({
     const [saving, setSaving] = useState(false);
 
     const saveCurrentStep = () => {
+        const stepKey = steps[current].key;
+        if (stepKey === 'ccr-hourly') {
+            if (current < steps.length - 1) {
+                setCurrent(current + 1);
+            }
+            return;
+        }
+
         setSaving(true);
-        const stepKey = STEPS[current].key;
 
         const handlers: Record<string, { url: string; data: object }> = {
             production: {
@@ -77,7 +93,7 @@ export default function EntryWizard({
             preserveScroll: true,
             onSuccess: () => {
                 message.success('Data berhasil disimpan.');
-                if (current < STEPS.length - 1) {
+                if (current < steps.length - 1) {
                     setCurrent(current + 1);
                 }
             },
@@ -86,8 +102,10 @@ export default function EntryWizard({
     };
 
     const stepContent = () => {
-        switch (current) {
-            case 0:
+        const stepKey = steps[current].key;
+
+        switch (stepKey) {
+            case 'production':
                 return (
                     <ProductionForm
                         pits={pits}
@@ -97,7 +115,7 @@ export default function EntryWizard({
                         onChange={setProduction}
                     />
                 );
-            case 1:
+            case 'fuel':
                 return (
                     <FuelForm
                         records={entry.fuel_records ?? []}
@@ -109,7 +127,7 @@ export default function EntryWizard({
                         onChange={setFuel}
                     />
                 );
-            case 2:
+            case 'deployment':
                 return (
                     <DeploymentForm
                         records={entry.equipment_deployments ?? []}
@@ -119,24 +137,35 @@ export default function EntryWizard({
                         onChange={setDeployments}
                     />
                 );
-            case 3:
+            case 'site-info':
                 return <SiteInfoForm data={entry.site_info ?? null} onChange={setSiteInfo} />;
+            case 'ccr-hourly':
+                return <HourlySummaryTab totals={hourlyTotals ?? []} entryId={entry.id} />;
             default:
                 return null;
         }
     };
 
+    const isReadOnlyStep = steps[current].key === 'ccr-hourly';
+
     return (
         <div>
-            <Steps current={current} items={STEPS} size="small" style={{ marginBottom: 24 }} />
+            <Steps current={current} items={steps} size="small" style={{ marginBottom: 24 }} />
             {stepContent()}
             <div style={{ marginTop: 24, display: 'flex', gap: 8 }}>
                 {current > 0 && (
                     <Button onClick={() => setCurrent(current - 1)}>Sebelumnya</Button>
                 )}
-                <Button type="primary" loading={saving} onClick={saveCurrentStep} style={{ flex: 1 }}>
-                    {current < STEPS.length - 1 ? 'Simpan & Lanjut' : 'Simpan'}
-                </Button>
+                {!isReadOnlyStep && (
+                    <Button type="primary" loading={saving} onClick={saveCurrentStep} style={{ flex: 1 }}>
+                        {current < steps.length - 1 ? 'Simpan & Lanjut' : 'Simpan'}
+                    </Button>
+                )}
+                {isReadOnlyStep && current < steps.length - 1 && (
+                    <Button type="primary" onClick={() => setCurrent(current + 1)} style={{ flex: 1 }}>
+                        Lanjut
+                    </Button>
+                )}
             </div>
         </div>
     );

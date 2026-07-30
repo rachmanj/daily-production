@@ -1,11 +1,13 @@
 import DeploymentForm, { type DeploymentRow } from '@/Components/entry/DeploymentForm';
 import FuelForm, { type FuelRow } from '@/Components/entry/FuelForm';
+import HourlySummaryTab from '@/Components/entry/HourlySummaryTab';
 import ProductionForm, { type ProductionRow } from '@/Components/entry/ProductionForm';
 import SiteInfoForm from '@/Components/entry/SiteInfoForm';
 import type {
     DailyEntry,
     EquipmentAssignment,
     FuelTypeOption,
+    HourlyTotal,
     PitOption,
     ShiftOption,
     SiteInfo,
@@ -24,6 +26,8 @@ interface EntryTabsProps {
     fuelCategories: Record<string, string>;
     projectCode?: string;
     readOnly?: boolean;
+    ccrEnabled?: boolean;
+    hourlyTotals?: HourlyTotal[] | null;
 }
 
 export default function EntryTabs({
@@ -36,6 +40,8 @@ export default function EntryTabs({
     fuelCategories,
     projectCode,
     readOnly,
+    ccrEnabled,
+    hourlyTotals,
 }: EntryTabsProps) {
     const [production, setProduction] = useState<ProductionRow[]>([]);
     const [fuel, setFuel] = useState<FuelRow[]>([]);
@@ -180,6 +186,14 @@ export default function EntryTabs({
             ),
         },
     ];
+
+    if (ccrEnabled) {
+        items.push({
+            key: 'ccr-hourly',
+            label: 'CCR Hourly',
+            children: <HourlySummaryTab totals={hourlyTotals ?? []} entryId={entry.id} />,
+        });
+    }
 
     return <Tabs items={items} />;
 }

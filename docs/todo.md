@@ -1,9 +1,12 @@
 # Current Tasks
 
-**Last Updated**: 2026-07-29
+**Last Updated**: 2026-07-30
 
 ## Recently Completed
 
+- `[done] CCR Hourly ↔ Daily Entry integration — read-only per-entry hourly totals tab + header badge on Show/Edit (completed: 2026-07-30)`
+- `[done] CCR Hourly extended to 017C (KPUC) + 022C (GPK); added Overburden (OB) material type; site list centralized in config/mineops.php (completed: 2026-07-30)`
+- `[done] Equipment Assignment CCR classification UI — material_type/role/display_order via Klasifikasi CCR modal (completed: 2026-07-30)`
 - `[done] CCR Hourly H0–H4: data model, calculation engine, input grid, dashboard/heatmap, PWA offline, export/import (completed: 2026-07-29)`
 - `[done] P1: Laporan Konsolidasi — multi-site, multi-periode, merged PDF/Excel + on-screen dashboard (completed: 2026-07-25)`
 - `[done] P1: Dark/light mode toggle (default dark) with Ant Design + Tailwind (completed: 2026-07-25)`

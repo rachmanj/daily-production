@@ -1,5 +1,5 @@
 **Purpose**: AI's persistent knowledge base for project context and learnings
-**Last Updated**: 2026-07-29
+**Last Updated**: 2026-07-30
 
 ## Memory Maintenance Guidelines
 
@@ -20,13 +20,37 @@
 
 ## Project Memory Entries
 
+### [012] CCR Hourly ↔ Daily Entry — Read-Only Totals Integration (2026-07-30) ✅ COMPLETE
+
+**Decision**: Surface live hourly totals inside Daily Entry Show/Edit for CCR sites without auto-syncing into `production_records` (SR/FCR/dashboard KPIs unchanged).
+
+**Solution**: `HourlyProductionService::getDailyTotals()` aggregates per-entry (any status, not approval-gated); `DailyEntryController::entryPayload()` adds `ccrEnabled` + `hourlyTotals` props; new `HourlySummaryTab` component in EntryTabs/EntryWizard + header badge on Show/Edit.
+
+**Key Learning**: `CalculationService::materialDtd()` is approval-gated and site-wide — wrong for draft entry preview. Per-entry aggregation must be a separate method that sums `hourly_production_records` for one `daily_entry_id` only.
+
+### [011] CCR Hourly — Extended to 017C/022C + Overburden Material (2026-07-30) ✅ COMPLETE
+
+**Decision**: Enable CCR Hourly for coal-mining sites 017C (KPUC) and 022C (GPK) in addition to cement sites 021C/025C; add `MaterialType::Overburden` (`ob`) for hourly OB removal tracking.
+
+**Solution**: Centralized site allowlist in `config/mineops.php` (`ccr_site_codes`); `HourlyEntryController` + `HourlyDashboardController` read from config instead of hardcoded constants. No frontend changes — material/site dropdowns are dynamic from backend props.
+
+**Key Learning**: To onboard a new CCR site: add its code to `config/mineops.php`, assign equipment via Master Data, classify units via **Klasifikasi CCR** modal, then set `material_daily_plans` (no admin UI yet — DB/seeder only).
+
 ### [009] CCR Hourly Module — Material Stream Parallel to OB/Coal (2026-07-29) ✅ COMPLETE
 
 **Decision**: Add `hourly_production_records` + `material_daily_plans` as child of existing `daily_entries`; reuse draft→submit→approve workflow.
 
 **Solution**: `MaterialType` enum; `HourlyProductionService` upsert via unique `(daily_entry_id, equipment_id, material_type, hour_slot)`; `CalculationService::materialDtd/Mtd/hourlyTarget`; IndexedDB `draftHourly` store (DB v2).
 
-**Key Learning**: CCR sites 021C/025C equipment columns come from `equipment_assignments` with `material_type` + `display_order` — no hardcoded unit list in frontend.
+**Key Learning**: CCR sites (021C, 025C, 017C, 022C — see `config/mineops.php`) equipment columns come from `equipment_assignments` with `material_type` + `display_order` — no hardcoded unit list in frontend. Admins set these via Equipment Assignment → **Klasifikasi CCR** modal (`equipment-assignments.update`).
+
+### [010] Equipment Assignment CCR Classification UI (2026-07-30) ✅ COMPLETE
+
+**Challenge**: Hourly Entry grid empty ("Belum ada alat ter-assign") because assign flow only set `pit_id`/`is_active_for_tracking`; `material_type` was seeder-only.
+
+**Solution**: `UpdateEquipmentAssignmentRequest` + `EquipmentAssignmentController::update`; `ClassifyModal.tsx` on index table for `material_type`, `equipment_role`, `display_order`, tracking toggle.
+
+**Key Learning**: Assign (ArkFleet search) and classify (CCR metadata) are separate steps — unit may be assigned before its CCR material role is known.
 
 ### [008] Consolidated Report — Multi-Site Period Rollup (2026-07-25) ✅ COMPLETE
 

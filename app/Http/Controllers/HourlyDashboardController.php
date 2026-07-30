@@ -19,8 +19,6 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class HourlyDashboardController extends Controller
 {
-    private const CCR_SITE_CODES = ['021C', '025C'];
-
     public function __construct(
         protected CalculationService $calculationService,
         protected HourlyProductionService $hourlyProductionService,
@@ -28,7 +26,7 @@ class HourlyDashboardController extends Controller
 
     public function index(Request $request): Response
     {
-        $sites = Site::query()->whereIn('code', self::CCR_SITE_CODES)->orderBy('code')->get(['id', 'code', 'name']);
+        $sites = Site::query()->whereIn('code', config('mineops.ccr_site_codes'))->orderBy('code')->get(['id', 'code', 'name']);
         $siteId = $request->integer('site_id', $sites->first()?->id ?? 0);
         $date = $request->string('date', now()->toDateString());
         $material = $request->string('material', MaterialType::Limestone->value);

@@ -1,6 +1,6 @@
 # System Architecture — ARKA MineOps
 
-**Last Updated**: 2026-07-29
+**Last Updated**: 2026-07-30
 
 ## Project Overview
 
@@ -46,21 +46,21 @@ Users table includes optional unique `username` column (nullable; admins set via
 
 | Module | Routes | Status |
 |--------|--------|--------|
-| Master Data | `/sites`, `/pits`, `/shifts`, `/fuel-types`, `/equipment-assignments` | ✅ |
-| Daily Entry | `/daily-entries`, `/excel-imports` | ✅ |
+| Master Data | `/sites`, `/pits`, `/shifts`, `/fuel-types`, `/equipment-assignments` (+ CCR classify modal) | ✅ |
+| Daily Entry | `/daily-entries`, `/excel-imports` | ✅ (CCR sites: live hourly totals tab + header badge) |
 | Dashboard | `/dashboard`, `/api/dashboard/*` | ✅ |
 | Reports | `/reports`, `/reports/consolidated` | ✅ |
 | Plan vs Actual | `/monthly-plans`, `/variance` | ✅ |
 | Procurement | `/procurement`, `/api/procurement/*` | ✅ |
 | Notifications | `/notifications` + scheduled commands | ✅ |
 | PWA/Offline | IndexedDB + `/api/sync/*` | ✅ |
-| CCR Hourly | `/hourly`, `/hourly-dashboard`, `/api/hourly-*` | ✅ |
+| CCR Hourly | `/hourly`, `/hourly-dashboard`, `/api/hourly-*` | ✅ (sites: 021C, 025C, 017C, 022C via `config/mineops.php`) |
 
 ## Services
 
 - **CalculationService** — MTD/YTD/PTD, SR, FCR, Achievement %; material DTD/MTD/hourly target; Redis cache with invalidation on approve
 - **DailyEntryService** — CRUD orchestration, UUID idempotency, workflow
-- **HourlyProductionService** — CCR hourly grid upsert, equipment grid, fleet status
+- **HourlyProductionService** — CCR hourly grid upsert, equipment grid, fleet status, per-entry daily totals (`getDailyTotals`)
 - **DashboardService** — KPI/trend/utilization aggregation
 - **PlanService** — Monthly plans, variance, loss contribution
 - **ProcurementApiService** — ARK-GS HTTP client, 6h Redis cache, mock fallback
@@ -73,7 +73,7 @@ Users table includes optional unique `username` column (nullable; admins set via
 
 Core: `sites`, `pits`, `shifts`, `daily_entries`, `production_records`, `fuel_records`, `equipment_deployments`, `site_info`, `monthly_plans`, `plan_targets`, `equipment_assignments`, `project_site_mappings`, `import_batches`, `notifications`
 
-CCR add-on: `hourly_production_records`, `material_daily_plans` (+ `equipment_assignments.material_type/equipment_role/display_order`)
+CCR add-on: `hourly_production_records`, `material_daily_plans` (+ `equipment_assignments.material_type/equipment_role/display_order`, editable via Equipment Assignment **Klasifikasi CCR** modal → `PUT /equipment-assignments/{id}`). CCR-enabled sites configured in `config/mineops.php` (`ccr_site_codes`). `MaterialType` includes `Overburden (OB)` for coal-mining sites (017C, 022C). Daily Entry Show/Edit surfaces live per-entry hourly totals (read-only, any status) via `ccrEnabled` + `hourlyTotals` Inertia props — does not write to `production_records`.
 
 ## API Endpoints
 

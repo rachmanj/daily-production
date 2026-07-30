@@ -99,7 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/equipment-assignments/search', [EquipmentAssignmentController::class, 'search'])
             ->name('equipment-assignments.search');
         Route::resource('equipment-assignments', EquipmentAssignmentController::class)
-            ->only(['index', 'store', 'destroy']);
+            ->only(['index', 'store', 'update', 'destroy']);
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
