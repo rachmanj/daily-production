@@ -1,6 +1,6 @@
 # Panduan Pengguna ARKA MineOps
 
-> **Versi:** 1.0 · **Terakhir diperbarui:** 29 Juli 2026  
+> **Versi:** 1.1 · **Terakhir diperbarui:** 30 Juli 2026  
 > PT. Arkananta · Integrated Mining Operations Dashboard
 
 ---
@@ -39,9 +39,9 @@ Selain produksi harian, platform ini juga mencakup monitoring fuel, plan vs actu
 | Fitur | Deskripsi |
 |-------|-----------|
 | **Executive Dashboard** | KPI produksi (OB, Coal, SR, Fuel), trend chart, status alat, produksi per-PIT |
-| **Daily Entry** | Input harian terpadu: produksi, fuel, deployment, info site |
+| **Daily Entry** | Input harian terpadu: produksi, fuel, deployment, info site; tab total CCR hourly di site CCR-enabled |
 | **Fuel Dashboard** | Monitoring konsumsi BBM per alat, FCR, trend |
-| **CCR Hourly** | Produksi per jam per alat (Limestone, Shalestone) dengan heatmap |
+| **CCR Hourly** | Produksi per jam per alat (Limestone, Shalestone, Coal, Overburden) dengan heatmap; terintegrasi ke Daily Entry di site CCR |
 | **Plan vs Actual** | Target bulanan per PIT, achievement %, analisis variance |
 | **Procurement KPI** | Budget, GRPO, NPI dari ARK-GS (SAP B1) |
 | **Reports** | Laporan harian, custom periode, konsolidasi multi-site |
@@ -239,7 +239,7 @@ Modul inti untuk input data operasional harian — menggantikan tiga file Excel 
    - **Tanggal Produksi** — tanggal operasional
    - **Site** — site operasional
 4. Klik **Buat Entry**.
-5. Anda diarahkan ke halaman edit dengan empat tab.
+5. Anda diarahkan ke halaman edit dengan empat tab (ditambah tab **CCR Hourly** di site CCR-enabled — lihat di bawah).
 
 > Satu entry unik per kombinasi **tanggal + site**. Jika sudah ada, sistem menolak duplikasi.
 
@@ -320,6 +320,29 @@ Input informasi umum site harian (menggantikan Daily Info Site — bagian non-eq
 **Langkah:**
 1. Isi semua field relevan.
 2. Klik **Simpan Info Site**.
+
+#### Tab CCR Hourly *(hanya site CCR-enabled)*
+
+**Path:** `Daily Entry → [Entry] → Tab CCR Hourly`
+
+Di site yang mengaktifkan CCR Hourly (021C, 025C, 017C, 022C), tab tambahan ini menampilkan **total harian live** yang diagregasi dari data hourly production untuk entry tersebut.
+
+| Kolom | Keterangan |
+|-------|------------|
+| **Material** | Jenis material (mis. Limestone, Coal, Overburden) |
+| **Total (Mton)** | Jumlah tonase semua jam pada hari itu |
+| **Jam Terisi** | Jumlah slot jam yang sudah diisi (dari 24) |
+| **Plan DTD** | Target harian dari material plan (jika dikonfigurasi) |
+| **Achievement** | Actual vs plan % (badge berwarna) |
+
+**Badge di header:** Jika ada data hourly, header entry juga menampilkan tag ringkas seperti `Coal: 1.240 ton` per material.
+
+**Penting:**
+- Total langsung terupdate saat Anda mengisi grid Hourly Entry — bahkan saat daily entry masih **Draft**.
+- Tab ini **read-only**; tidak menulis ke tab Produksi (OB/Coal). KPI SR/FCR dan executive dashboard tidak berubah.
+- Klik **Buka Hourly Entry** untuk membuka grid input hourly pada tanggal dan site yang sama.
+
+> Jika tab menampilkan "Belum ada data hourly untuk entry ini", buat atau edit data hourly via `Sidebar → CCR Hourly → Hourly Entry`.
 
 #### Workflow: Draft → Submit → Approve
 
@@ -414,6 +437,7 @@ Tabel menampilkan alat yang sudah di-assign:
 | Project | Kode project/site |
 | PIT | PIT penugasan |
 | Tracking | Status aktif untuk tracking fuel/deployment |
+| Material / Role / Order | Klasifikasi CCR *(site CCR)* — lihat di bawah |
 
 #### Menambah Assignment
 
@@ -422,6 +446,20 @@ Tabel menampilkan alat yang sudah di-assign:
 3. Pilih alat dari hasil pencarian (data dari arkfleet-next API).
 4. Pilih **PIT** tujuan.
 5. Konfirmasi — alat muncul di tabel assignment.
+
+#### Klasifikasi CCR *(site CCR-enabled)*
+
+Untuk site yang memakai CCR Hourly, setiap unit yang di-assign juga harus diklasifikasi untuk grid hourly:
+
+1. Di tabel assignment, klik **Klasifikasi CCR** pada baris alat.
+2. Di modal, atur:
+   - **Material Type** — Limestone, Shalestone, Coal, Overburden (OB), atau kosongkan untuk umum
+   - **Equipment Role** — mis. loader, hauler, grader
+   - **Display Order** — urutan kolom di heatmap/grid hourly (angka kecil = kiri)
+   - **Tracking Aktif** — sertakan di ringkasan fleet hourly
+3. Klik **Simpan**.
+
+> Assign (pencarian ArkFleet) dan klasifikasi CCR adalah langkah terpisah. Unit bisa di-assign ke PIT sebelum peran material CCR-nya diketahui.
 
 #### Menghapus Assignment
 
@@ -491,7 +529,9 @@ Data jam hujan/licin diambil dari tab **Info Site** daily entry.
 
 ### 3.6 CCR Hourly Production
 
-Modul monitoring produksi **per jam per alat** untuk material non-coal (Limestone, Shalestone). Menggantikan Google Sheets CCR di site 021C dan 025C.
+Modul monitoring produksi **per jam per alat** sebagai stream paralel dengan daily entry OB/Coal klasik. Menggantikan Google Sheets CCR di site semen (021C, 025C) dan mendukung site batubara (017C, 022C) untuk pelacakan Coal dan Overburden.
+
+**Site CCR-enabled:** 021C, 025C, 017C, 022C (dikonfigurasi di pengaturan sistem).
 
 #### CCR Dashboard
 
@@ -505,11 +545,13 @@ Modul monitoring produksi **per jam per alat** untuk material non-coal (Limeston
 | **Fleet Status** | Jumlah unit per role (loader, hauler, grader) |
 
 **Filter:**
-- **Site** — 021C, 025C (site CCR-enabled)
+- **Site** — 021C, 025C, 017C, 022C
 - **Tanggal**
-- **Material** — Limestone (LS), Shalestone (SH)
+- **Material** — Limestone (LS), Shalestone (SH), Coal, Overburden (OB), Lainnya
 
 **Export:** Tombol **Export Excel** dan **Export PDF** di toolbar.
+
+> KPI dashboard memakai data hourly yang sudah **approved** (site-wide). Total draft di Daily Entry memakai agregasi per-entry live (lihat §3.2 Tab CCR Hourly).
 
 #### Hourly Entry
 
@@ -519,23 +561,25 @@ Grid input tonase per jam per alat — setara satu sel di Google Sheet CCR.
 
 **Membuat entry hourly:**
 1. Klik **Entry Baru**.
-2. Pilih tanggal dan site.
+2. Pilih tanggal, site, material, dan shift.
 3. Buka entry → grid menampilkan:
    - **Baris** = interval jam (00:00–01:00 s/d 23:00–24:00)
-   - **Kolom** = alat ter-assign (E 084, E 096, dll.)
+   - **Kolom** = alat ter-assign (E 084, E 096, dll.) — dari Equipment Assignment yang sudah diklasifikasi CCR
    - **Sel** = tonase (Mton) pada jam tersebut
 
 4. Isi tonase per sel.
-5. Pilih **Material** (Limestone / Shalestone) dan **Shift**.
-6. Simpan — mengikuti workflow draft → submit → approve yang sama.
+5. Simpan — mengikuti workflow draft → submit → approve yang sama dengan Daily Entry (header `daily_entries` bersama per tanggal + site).
+
+**Hubungan ke Daily Entry:** Untuk tanggal dan site yang sama, record hourly menempel pada daily entry yang sama. Buka `Daily Entry → [Entry] → Tab CCR Hourly` untuk melihat total harian tanpa input ulang.
 
 #### Material Types
 
-| Material | Label | Site |
-|----------|-------|------|
+| Material | Label | Site umum |
+|----------|-------|-----------|
 | `limestone` | Limestone (LS) | 021C, 025C |
 | `shalestone` | Shalestone (SH) | 021C |
-| `coal` | Coal | *(reserved)* |
+| `coal` | Coal | 017C, 022C |
+| `ob` | Overburden (OB) | 017C, 022C |
 | `other` | Lainnya | — |
 
 #### Per-hour Per-equipment Tracking
@@ -546,6 +590,8 @@ Setiap sel di grid merepresentasikan satu record unik: `(tanggal, site, alat, ma
 Target per jam = daily_plan_tonnage / operating_hours_per_day
 Achievement sel = tonase_actual / target_per_jam
 ```
+
+**Kolom alat** berasal dari assignment di `Sidebar → Equipment` dengan **Material Type** dan **Display Order** diatur via **Klasifikasi CCR**. Jika grid menampilkan "Belum ada alat ter-assign", klasifikasi alat untuk site aktif terlebih dahulu.
 
 ---
 
@@ -743,8 +789,8 @@ Kelola shift operasional:
 
 Lihat [§3.4 Equipment](#34-equipment) — hanya Admin yang dapat mengelola assignment alat ke PIT.
 
-Untuk CCR hourly, assignment juga mendukung field tambahan:
-- **Material Type** — limestone, shalestone
+Untuk CCR hourly, assignment juga mendukung field tambahan (diatur via modal **Klasifikasi CCR** pada setiap baris):
+- **Material Type** — limestone, shalestone, coal, overburden (ob)
 - **Equipment Role** — loader, hauler, grader
 - **Display Order** — urutan kolom di grid hourly
 
@@ -791,6 +837,7 @@ Di mobile (< 1024px), sidebar disembunyikan dan diganti drawer:
 - Form input menggunakan keyboard numerik untuk field angka.
 - Tombol aksi cukup besar untuk sentuhan jari.
 - Gunakan mode landscape untuk grid hourly yang lebar.
+- Di site CCR-enabled, wizard Daily Entry mobile menyertakan langkah **CCR Hourly** (read-only) yang menampilkan total harian dari input hourly.
 
 ---
 
@@ -809,7 +856,9 @@ Di mobile (< 1024px), sidebar disembunyikan dan diganti drawer:
 | Procurement data kosong | ARK-GS belum sync | Cek badge Last Synced; data sync 06:05 & 12:05 WITA |
 | Offline sync gagal | Koneksi terputus saat sync | Pastikan online, klik Sync lagi |
 | Menu Master Data tidak muncul | Bukan role Admin | Hubungi Admin untuk perubahan role |
-| Heatmap CCR kosong | Belum ada data hourly / plan | Input data hourly dan set material daily plan |
+| Heatmap CCR kosong | Belum ada data hourly / plan / alat belum diklasifikasi | Input data hourly; set material daily plan; klasifikasi alat via Klasifikasi CCR |
+| Tab CCR Hourly kosong di Daily Entry | Belum ada record hourly untuk tanggal+site itu | Isi grid via `Sidebar → CCR Hourly → Hourly Entry` |
+| Grid hourly tanpa kolom alat | Unit belum diklasifikasi CCR | Admin: `Sidebar → Equipment` → **Klasifikasi CCR** per unit |
 
 ### 6.2 Error Umum
 

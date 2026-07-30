@@ -1,6 +1,6 @@
 # ARKA MineOps User Manual
 
-> **Version:** 1.0 · **Last Updated:** July 29, 2026  
+> **Version:** 1.1 · **Last Updated:** July 30, 2026  
 > PT. Arkananta · Integrated Mining Operations Dashboard
 
 ---
@@ -39,9 +39,9 @@ Beyond daily production, the platform includes fuel monitoring, plan vs actual a
 | Feature | Description |
 |---------|-------------|
 | **Executive Dashboard** | Production KPIs (OB, Coal, SR, Fuel), trend charts, equipment status, per-PIT production |
-| **Daily Entry** | Unified daily input: production, fuel, deployment, site info |
+| **Daily Entry** | Unified daily input: production, fuel, deployment, site info; CCR hourly totals tab on CCR-enabled sites |
 | **Fuel Dashboard** | Per-equipment fuel consumption, FCR, trends |
-| **CCR Hourly** | Hourly per-equipment production (Limestone, Shalestone) with heatmap |
+| **CCR Hourly** | Hourly per-equipment production (Limestone, Shalestone, Coal, Overburden) with heatmap; integrated into Daily Entry for CCR sites |
 | **Plan vs Actual** | Monthly PIT targets, achievement %, variance analysis |
 | **Procurement KPI** | Budget, GRPO, NPI from ARK-GS (SAP B1) |
 | **Reports** | Daily, custom period, multi-site consolidated reports |
@@ -239,7 +239,7 @@ Core module for daily operational data entry — replacing three separate Excel 
    - **Tanggal Produksi** (Production Date)
    - **Site**
 4. Click **Buat Entry** (Create Entry).
-5. You are redirected to the edit page with four tabs.
+5. You are redirected to the edit page with four tabs (plus a **CCR Hourly** tab on CCR-enabled sites — see below).
 
 > One entry per **date + site** combination. Duplicates are rejected.
 
@@ -320,6 +320,29 @@ Enter general daily site information (replaces the non-equipment section of Dail
 **Steps:**
 1. Fill in all relevant fields.
 2. Click **Simpan Info Site** (Save Site Info).
+
+#### CCR Hourly Tab *(CCR-enabled sites only)*
+
+**Path:** `Daily Entry → [Entry] → Tab CCR Hourly`
+
+On sites enabled for CCR Hourly (021C, 025C, 017C, 022C), an additional read-only tab shows **live daily totals** aggregated from hourly production records for this entry.
+
+| Column | Description |
+|--------|-------------|
+| **Material** | Material type (e.g. Limestone, Coal, Overburden) |
+| **Total (Mton)** | Sum of all hourly tonnage for the day |
+| **Hours Filled** | Number of hour slots with data (out of 24) |
+| **Plan DTD** | Daily target from material plan (if configured) |
+| **Achievement** | Actual vs plan % (color-coded badge) |
+
+**Header badge:** When hourly data exists, the entry header also shows compact tags such as `Coal: 1.240 ton` per material.
+
+**Important:**
+- Totals update immediately as you fill the Hourly Entry grid — even while the daily entry is still **Draft**.
+- This tab is **read-only**; it does not write to the Produksi (OB/Coal) tab. SR/FCR and executive dashboard KPIs are unchanged.
+- Click **Buka Hourly Entry** to open the hourly input grid for this date and site.
+
+> If the tab shows "Belum ada data hourly untuk entry ini", create or edit hourly records via `Sidebar → CCR Hourly → Hourly Entry`.
 
 #### Workflow: Draft → Submit → Approve
 
@@ -414,6 +437,7 @@ The table shows currently assigned equipment:
 | Project | Project/site code |
 | PIT | Assignment PIT |
 | Tracking | Active status for fuel/deployment tracking |
+| Material / Role / Order | CCR classification *(CCR sites)* — see below |
 
 #### Assigning Equipment
 
@@ -422,6 +446,20 @@ The table shows currently assigned equipment:
 3. Select equipment from search results (data from arkfleet-next API).
 4. Select the target **PIT**.
 5. Confirm — the equipment appears in the assignment table.
+
+#### CCR Classification *(CCR-enabled sites)*
+
+For sites using CCR Hourly, each assigned unit must also be classified for the hourly grid:
+
+1. In the assignment table, click **Klasifikasi CCR** on the equipment row.
+2. In the modal, set:
+   - **Material Type** — Limestone, Shalestone, Coal, Overburden (OB), or leave blank for general use
+   - **Equipment Role** — e.g. loader, hauler, grader
+   - **Display Order** — column order in the hourly heatmap/grid (lower = left)
+   - **Tracking Aktif** — include in hourly fleet summary
+3. Click **Simpan**.
+
+> Assign (ArkFleet search) and CCR classify are separate steps. A unit may be assigned to a PIT before its CCR material role is known.
 
 #### Removing an Assignment
 
@@ -491,7 +529,9 @@ Rain/slippery hour data is sourced from the **Info Site** tab of daily entries.
 
 ### 3.6 CCR Hourly Production
 
-Hourly **per-equipment** production monitoring for non-coal materials (Limestone, Shalestone). Replaces Google Sheets CCR at sites 021C and 025C.
+Hourly **per-equipment** production monitoring for material streams parallel to classic OB/Coal daily entry. Replaces Google Sheets CCR at cement sites (021C, 025C) and supports coal-mining sites (017C, 022C) for Coal and Overburden tracking.
+
+**CCR-enabled sites:** 021C, 025C, 017C, 022C (configured in system settings).
 
 #### Hourly Dashboard
 
@@ -505,11 +545,13 @@ Hourly **per-equipment** production monitoring for non-coal materials (Limestone
 | **Fleet Status** | Unit count per role (loader, hauler, grader) |
 
 **Filters:**
-- **Site** — 021C, 025C (CCR-enabled sites)
+- **Site** — 021C, 025C, 017C, 022C
 - **Date**
-- **Material** — Limestone (LS), Shalestone (SH)
+- **Material** — Limestone (LS), Shalestone (SH), Coal, Overburden (OB), Other
 
 **Export:** **Export Excel** and **Export PDF** buttons in the toolbar.
+
+> Dashboard KPIs use **approved** hourly data site-wide. Draft entry totals on Daily Entry use live per-entry aggregation (see §3.2 CCR Hourly Tab).
 
 #### Hourly Entry Grid
 
@@ -519,23 +561,25 @@ Tonnage input grid per hour per equipment — equivalent to one cell in the CCR 
 
 **Creating an hourly entry:**
 1. Click **Entry Baru** (New Entry).
-2. Select date and site.
+2. Select date, site, material, and shift.
 3. Open the entry → grid displays:
    - **Rows** = hour intervals (00:00–01:00 through 23:00–24:00)
-   - **Columns** = assigned equipment (E 084, E 096, etc.)
+   - **Columns** = assigned equipment (E 084, E 096, etc.) — from Equipment Assignment with CCR classification
    - **Cells** = tonnage (Mton) for that hour
 
 4. Enter tonnage per cell.
-5. Select **Material** (Limestone / Shalestone) and **Shift**.
-6. Save — follows the same draft → submit → approve workflow.
+5. Save — follows the same draft → submit → approve workflow as Daily Entry (shared `daily_entries` header per date + site).
+
+**Link to Daily Entry:** For the same date and site, hourly records attach to the same daily entry. Open `Daily Entry → [Entry] → Tab CCR Hourly` to see rolled-up daily totals without re-entering data.
 
 #### Material Types
 
-| Material | Label | Sites |
-|----------|-------|-------|
+| Material | Label | Typical sites |
+|----------|-------|---------------|
 | `limestone` | Limestone (LS) | 021C, 025C |
 | `shalestone` | Shalestone (SH) | 021C |
-| `coal` | Coal | *(reserved)* |
+| `coal` | Coal | 017C, 022C |
+| `ob` | Overburden (OB) | 017C, 022C |
 | `other` | Other | — |
 
 #### Per-hour Per-equipment Tracking
@@ -546,6 +590,8 @@ Each grid cell represents one unique record: `(date, site, equipment, material, 
 Hourly target = daily_plan_tonnage / operating_hours_per_day
 Cell achievement = actual_tonnage / hourly_target
 ```
+
+**Equipment columns** come from `Sidebar → Equipment` assignments with **Material Type** and **Display Order** set via **Klasifikasi CCR**. If the grid shows "Belum ada alat ter-assign", classify equipment for the active site first.
 
 ---
 
@@ -743,8 +789,8 @@ Manage operational shifts:
 
 See [§3.4 Equipment](#34-equipment) — only Admin can manage equipment-to-PIT assignments.
 
-For CCR hourly, assignments also support additional fields:
-- **Material Type** — limestone, shalestone
+For CCR hourly, assignments also support additional fields (set via **Klasifikasi CCR** modal on each row):
+- **Material Type** — limestone, shalestone, coal, overburden (ob)
 - **Equipment Role** — loader, hauler, grader
 - **Display Order** — column order in the hourly grid
 
@@ -791,6 +837,7 @@ On mobile (< 1024px), the sidebar is hidden and replaced by a drawer:
 - Input forms use numeric keyboards for number fields.
 - Action buttons are sized for touch interaction.
 - Use landscape mode for wide hourly grids.
+- On CCR-enabled sites, Daily Entry mobile wizard includes a read-only **CCR Hourly** step showing daily totals from hourly input.
 
 ---
 
@@ -809,7 +856,9 @@ On mobile (< 1024px), the sidebar is hidden and replaced by a drawer:
 | Procurement data empty | ARK-GS not synced | Check Last Synced badge; data syncs at 06:05 & 12:05 WITA |
 | Offline sync failed | Connection lost during sync | Ensure online, click Sync again |
 | Master Data menu missing | Not Admin role | Contact Admin for role change |
-| CCR heatmap empty | No hourly data / plan | Enter hourly data and set material daily plan |
+| CCR heatmap empty | No hourly data / plan / unclassified equipment | Enter hourly data; set material daily plan; classify equipment via Klasifikasi CCR |
+| CCR Hourly tab empty on Daily Entry | No hourly records for that date+site | Fill grid via `Sidebar → CCR Hourly → Hourly Entry` |
+| Hourly grid has no equipment columns | Units not classified for CCR | Admin: `Sidebar → Equipment` → **Klasifikasi CCR** per unit |
 
 ### 6.2 Common Errors
 
