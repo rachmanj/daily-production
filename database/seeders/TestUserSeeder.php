@@ -45,6 +45,13 @@ class TestUserSeeder extends Seeder
                 'password' => bcrypt('password'),
                 'role' => 'supervisor',
             ],
+            [
+                'name' => 'Admin Test',
+                'username' => 'admin2',
+                'email' => 'admin2@mineops.test',
+                'password' => bcrypt('password'),
+                'role' => 'admin',
+            ],
         ];
 
         foreach ($users as $data) {
