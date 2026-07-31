@@ -1,6 +1,6 @@
 # ARKA MineOps User Manual
 
-> **Version:** 1.1 · **Last Updated:** July 30, 2026  
+> **Version:** 1.2 · **Last Updated:** July 31, 2026  
 > PT. Arkananta · Integrated Mining Operations Dashboard
 
 ---
@@ -32,7 +32,7 @@ ARKA MineOps unifies three legacy daily reports:
 | Fuel Report | **Fuel** tab |
 | Daily Info Site | **Info Site** + **Deployment** tabs |
 
-Beyond daily production, the platform includes fuel monitoring, plan vs actual analysis, procurement KPIs (from SAP B1 via ARK-GS), CCR hourly production, and automated PDF/Excel reports.
+Beyond daily production, the platform includes fuel monitoring, plan vs actual analysis, procurement KPIs (from SAP B1 via ARK-GS), CCR hourly production (021C/025C), CCR 022C trip production, and automated PDF/Excel reports.
 
 ### 1.2 Key Features Overview
 
@@ -41,7 +41,8 @@ Beyond daily production, the platform includes fuel monitoring, plan vs actual a
 | **Executive Dashboard** | Production KPIs (OB, Coal, SR, Fuel), trend charts, equipment status, per-PIT production |
 | **Daily Entry** | Unified daily input: production, fuel, deployment, site info; CCR hourly totals tab on CCR-enabled sites |
 | **Fuel Dashboard** | Per-equipment fuel consumption, FCR, trends |
-| **CCR Hourly** | Hourly per-equipment production (Limestone, Shalestone, Coal, Overburden) with heatmap; integrated into Daily Entry for CCR sites |
+| **CCR Hourly** | Hourly per-equipment production (Limestone, Shalestone) at 021C/025C — KPI dashboard, heatmap, input grid; integrated into Daily Entry |
+| **CCR 022C** | Trip-level production (OB, Coal, Top Soil) at 022C — Excel import, manual entry, excavator×hauler pairing, reconciliation |
 | **Plan vs Actual** | Monthly PIT targets, achievement %, variance analysis |
 | **Procurement KPI** | Budget, GRPO, NPI from ARK-GS (SAP B1) |
 | **Reports** | Daily, custom period, multi-site consolidated reports |
@@ -147,7 +148,7 @@ Main menu in the left sidebar (desktop) or drawer (mobile):
 |------|------|-------------|
 | **Dashboard** | `Sidebar → Dashboard` | Executive KPI dashboard |
 | **Daily Entry** | `Sidebar → Daily Entry` | Create & manage daily entries |
-| **CCR Hourly** | `Sidebar → CCR Hourly` | Hourly Entry & CCR Dashboard submenu |
+| **CCR Hourly** | `Sidebar → CCR Hourly` | Submenu: Hourly Entry, CCR Dashboard, Import CCR 022C, Trip Entry 022C |
 | **Fuel** | `Sidebar → Fuel` | Fuel consumption dashboard |
 | **Equipment** | `Sidebar → Equipment` | Equipment-to-PIT assignment *(Admin)* |
 | **Sites** | `Sidebar → Sites` | Site master data *(Admin)* |
@@ -325,7 +326,7 @@ Enter general daily site information (replaces the non-equipment section of Dail
 
 **Path:** `Daily Entry → [Entry] → Tab CCR Hourly`
 
-On sites enabled for CCR Hourly (021C, 025C, 017C, 022C), an additional read-only tab shows **live daily totals** aggregated from hourly production records for this entry.
+On CCR-enabled sites (021C, 025C, 017C, 022C), an additional read-only tab shows **live daily totals** aggregated from hourly production records for this entry. At site **022C**, totals may be derived from trip rollup (see §3.7).
 
 | Column | Description |
 |--------|-------------|
@@ -454,7 +455,7 @@ For sites using CCR Hourly, each assigned unit must also be classified for the h
 1. In the assignment table, click **Klasifikasi CCR** on the equipment row.
 2. In the modal, set:
    - **Material Type** — Limestone, Shalestone, Coal, Overburden (OB), or leave blank for general use
-   - **Equipment Role** — e.g. loader, hauler, grader
+   - **Equipment Role** — e.g. loader, hauler, grader; for 022C trips: `excavator` (digger) or `hauler` (truck)
    - **Display Order** — column order in the hourly heatmap/grid (lower = left)
    - **Tracking Aktif** — include in hourly fleet summary
 3. Click **Simpan**.
@@ -527,60 +528,96 @@ Rain/slippery hour data is sourced from the **Info Site** tab of daily entries.
 
 ---
 
-### 3.6 CCR Hourly Production
+### 3.6 CCR Hourly Production (021C/025C)
 
-Hourly **per-equipment** production monitoring for material streams parallel to classic OB/Coal daily entry. Replaces Google Sheets CCR at cement sites (021C, 025C) and supports coal-mining sites (017C, 022C) for Coal and Overburden tracking.
+Hourly **per-equipment** production monitoring for cement sites **021C** and **025C**. Primary materials: **Limestone (LS)** and **Shalestone (SH)**. Replaces the CCR hourly Google Sheet with an integrated grid, real-time heatmap, and the same approval workflow as Daily Entry.
 
-**CCR-enabled sites:** 021C, 025C, 017C, 022C (configured in system settings).
+**CCR Hourly submenu** (`Sidebar → CCR Hourly`):
 
-#### Hourly Dashboard
+| Submenu | Path | Function |
+|---------|------|----------|
+| **Hourly Entry** | `Sidebar → CCR Hourly → Hourly Entry` | Hour × equipment tonnage input grid |
+| **CCR Dashboard** | `Sidebar → CCR Hourly → CCR Dashboard` | KPIs, heatmap, trend, fleet status |
+| **Import CCR 022C** | `Sidebar → CCR Hourly → Import CCR 022C` | Trip-level Excel import *(022C site — see §3.7)* |
+| **Trip Entry 022C** | `Sidebar → CCR Hourly → Trip Entry 022C` | Manual trip entry *(022C site — see §3.7)* |
+
+**CCR Hourly sites (LS/SH):** 021C (Limestone + Shalestone), 025C (Limestone).
+
+#### CCR Dashboard
 
 **Path:** `Sidebar → CCR Hourly → CCR Dashboard`
 
+Hourly production monitoring dashboard with **Site**, **Date**, and **Material** filters.
+
 | Component | Description |
 |-----------|-------------|
-| **KPI Card** | DTD & MTD actual vs plan, achievement %, hourly target |
-| **Heatmap** | Hour × equipment grid, red→green based on achievement |
-| **Trend Chart** | Total tonnage per hour |
-| **Fleet Status** | Unit count per role (loader, hauler, grader) |
+| **KPI Card** | For the selected material: **DTD** (actual vs plan), **MTD** (actual vs plan), **Jam Ini** (current hour tonnage vs hourly target) |
+| **Hourly Heatmap** | Color-coded **hour × equipment** table — each cell shows tonnage (Mton) for that hour interval |
+| **Trend Chart** | Total tonnage per hour throughout the day |
+| **Fleet Status** | Active unit count per role (loader, hauler, grader) from equipment assignments |
+
+**Heatmap color scheme** (based on achievement vs hourly target):
+
+| Color | Condition |
+|-------|-----------|
+| Green | Achievement ≥ 95% |
+| Yellow | Achievement 70%–94% |
+| Red | Achievement < 70% |
+| Transparent | No daily plan configured |
 
 **Filters:**
-- **Site** — 021C, 025C, 017C, 022C
+- **Site** — 021C, 025C (and other CCR sites if enabled)
 - **Date**
-- **Material** — Limestone (LS), Shalestone (SH), Coal, Overburden (OB), Other
+- **Material** — Limestone (LS), Shalestone (SH)
 
 **Export:** **Export Excel** and **Export PDF** buttons in the toolbar.
 
 > Dashboard KPIs use **approved** hourly data site-wide. Draft entry totals on Daily Entry use live per-entry aggregation (see §3.2 CCR Hourly Tab).
 
-#### Hourly Entry Grid
+#### Hourly Entry
 
 **Path:** `Sidebar → CCR Hourly → Hourly Entry`
 
 Tonnage input grid per hour per equipment — equivalent to one cell in the CCR Google Sheet.
 
-**Creating an hourly entry:**
-1. Click **Entry Baru** (New Entry).
-2. Select date, site, material, and shift.
-3. Open the entry → grid displays:
-   - **Rows** = hour intervals (00:00–01:00 through 23:00–24:00)
-   - **Columns** = assigned equipment (E 084, E 096, etc.) — from Equipment Assignment with CCR classification
-   - **Cells** = tonnage (Mton) for that hour
+**Creating a CCR daily entry (hourly):**
 
-4. Enter tonnage per cell.
-5. Save — follows the same draft → submit → approve workflow as Daily Entry (shared `daily_entries` header per date + site).
+1. Open `Sidebar → CCR Hourly → Hourly Entry`.
+2. Click **Entry Baru** (New Entry).
+3. Fill in the creation form:
+   - **Tanggal** (Date) — production date
+   - **Site** — 021C or 025C
+   - **Material** — Limestone (LS) or Shalestone (SH)
+   - **Shift** — Day (Siang) / Night (Malam)
+4. Click **Buat & Lanjut Input** (Create & Continue) — you are redirected to the grid page.
+
+> One hourly entry per **date + site + material + shift** combination. The entry attaches to the same `daily_entry` header (date + site).
+
+**Using the hourly grid:**
+
+| Dimension | Content |
+|-----------|---------|
+| **Rows** | Hour intervals (00:00–01:00 through 23:00–24:00) |
+| **Columns** | Assigned equipment from Equipment Assignment (e.g. E 084, E 096) — only CCR-classified units |
+| **Cells** | Tonnage (Mton) for that hour — type directly into the cell |
+| **D/Shift column** | Row total per hour (automatic) |
+| **Total row** | Column total per equipment (automatic) |
+
+**Input steps:**
+1. Enter tonnage per cell according to equipment output per hour.
+2. Click **Simpan** (Save) — data is saved even while status is still Draft.
+3. When complete, follow the **Draft → Submit → Approve** workflow (same as Daily Entry).
+
+**Fleet status:** The grid header shows a summary of assigned fleet for that material. Ensure equipment is classified via `Sidebar → Equipment → Klasifikasi CCR`.
 
 **Link to Daily Entry:** For the same date and site, hourly records attach to the same daily entry. Open `Daily Entry → [Entry] → Tab CCR Hourly` to see rolled-up daily totals without re-entering data.
 
-#### Material Types
+#### Material Types (021C/025C)
 
-| Material | Label | Typical sites |
-|----------|-------|---------------|
+| Material | Label | Site |
+|----------|-------|------|
 | `limestone` | Limestone (LS) | 021C, 025C |
 | `shalestone` | Shalestone (SH) | 021C |
-| `coal` | Coal | 017C, 022C |
-| `ob` | Overburden (OB) | 017C, 022C |
-| `other` | Other | — |
 
 #### Per-hour Per-equipment Tracking
 
@@ -595,7 +632,105 @@ Cell achievement = actual_tonnage / hourly_target
 
 ---
 
-### 3.7 Procurement KPI
+### 3.7 CCR 022C Trip Production
+
+Trip-level production monitoring (one row = one truck cycle) for coal site **022C GPK**. Materials: **Overburden (OB)**, **Coal**, and **Top Soil**. Trip data is automatically aggregated into the hourly heatmap and — depending on mode — into the Daily Entry Produksi tab.
+
+**Difference from CCR Hourly (021C/025C):**
+
+| Dimension | CCR Hourly (021C/025C) | CCR 022C |
+|-----------|------------------------|----------|
+| Granularity | Hourly aggregate per equipment | Per trip (truck cycle) |
+| Materials | Limestone, Shalestone | OB, Coal, Top Soil |
+| Equipment pairing | One equipment per column | Excavator × Hauler per trip |
+| Daily volume | ~24 rows/hour × equipment | ~250+ trips/day |
+
+#### Import CCR 022C
+
+**Path:** `Sidebar → CCR Hourly → Import CCR 022C`
+
+Bulk import from legacy CCR 022C Excel files (sheet **DATA TRIP**).
+
+**Steps:**
+1. Open the Import CCR 022C page.
+2. Select **Site** (022C).
+3. Drag & drop or select a `.xlsx` / `.xls` file (DATA TRIP sheet is parsed automatically).
+4. Click **Upload & Preview**.
+5. The **Preview** page shows:
+   - Detected production date
+   - Total trips, OB rollup (BCM), Coal rollup (Mton)
+   - Unit codes not matched to arkfleet (if any)
+   - Per-row parsing errors (if any)
+6. Review the mapping — verify date and trip count.
+7. Click **Import & Rollup** to confirm — trip records are saved and aggregated into the hourly heatmap.
+
+> Large files are processed in the background. Refresh the preview page if status is still `parsing`.
+
+#### Trip Entry 022C
+
+**Path:** `Sidebar → CCR Hourly → Trip Entry 022C`
+
+Manual trip entry form — for adding a single cycle without Excel import.
+
+| Field | Description |
+|-------|-------------|
+| **Tanggal** (Date) | Production date |
+| **Shift** | Day / Night |
+| **Excavator** | Digger — from equipment assignment with role `excavator` |
+| **Hauler** | Haul truck — from equipment assignment with role `hauler` |
+| **Material** | OB, Coal, or Top Soil |
+| **Jam (0–23)** (Hour) | Trip start hour interval |
+| **Volume (BCM)** | Volume per trip |
+| **% Load** | Truck load percentage |
+| **Ret/Trip** | Trip count (default 1.0) |
+| **Kapasitas Truk (BCM)** (Truck Capacity) | Truck capacity (optional) |
+
+Click **Simpan Trip** (Save Trip) — the trip is immediately included in hourly heatmap aggregation.
+
+#### 022C Dashboard
+
+**Path:** `Sidebar → CCR Hourly → CCR Dashboard` *(select site 022C)*
+
+The 022C dashboard displays trip-site-specific components above the hourly heatmap:
+
+| Component | Description |
+|-----------|-------------|
+| **KPI Cards (3 materials)** | One card per material (OB, Coal, Top Soil) — each showing DTD, MTD, and **Jam Ini** (Current Hour) |
+| **Hourly Heatmap** | Trip aggregate → tonnage per hour per excavator (same colors: green ≥95%, yellow 70–95%, red <70%) |
+| **Excavator × Hauler Pairing** | Collapsible panel per excavator — haulers served, trip count, total BCM volume, average % load |
+| **Fleet Status** | Unit count per role |
+| **Trip vs Manual Reconciliation** | Comparison of trip-derived Σ vs manual OB/Coal in Daily Entry |
+
+**Material filter:** Select OB, Coal, or Top Soil for heatmap and trend on that material.
+
+#### Reconciliation
+
+The **Rekonsiliasi Trip vs Manual** (Trip vs Manual Reconciliation) panel on the CCR Dashboard (site 022C) compares:
+
+| Metric | Trip Source | Manual Source |
+|--------|-------------|---------------|
+| OB | Σ trip OB volume (BCM) | Daily Entry Produksi tab |
+| Coal | Σ trip Coal volume (Mton) | Daily Entry Produksi tab |
+
+**Delta indicators (Δ):**
+- Green — difference < 0.01
+- Yellow — difference < 5% of manual value
+- Red — significant difference
+
+#### Production Source Mode (Feature Flag)
+
+Site 022C supports two daily OB/Coal production source modes, configured by Admin:
+
+| Mode | Behavior | When to use |
+|------|----------|-------------|
+| **`parallel`** *(default)* | Trip data for granular analysis; daily OB/Coal still entered manually in Daily Entry. Reconciliation panel flags differences. | Transition / dual-run phase |
+| **`trip_derived`** | Produksi OB/Coal tab **auto-populated** from trip rollup. Manual input becomes read-only. | After trip data is trusted |
+
+The active mode is shown as a tag on the Reconciliation panel (`parallel` or `trip_derived`).
+
+---
+
+### 3.8 Procurement KPI
 
 **Path:** `Sidebar → Procurement`
 
@@ -638,7 +773,7 @@ The **Last Synced** badge shows the most recent ARK-GS sync time.
 
 ---
 
-### 3.8 Reports
+### 3.9 Reports
 
 **Path:** `Sidebar → Reports`
 
@@ -676,7 +811,7 @@ Multi-site and multi-period summary including:
 
 ---
 
-### 3.9 Notifications
+### 3.10 Notifications
 
 #### Notification Bell
 
@@ -790,8 +925,8 @@ Manage operational shifts:
 See [§3.4 Equipment](#34-equipment) — only Admin can manage equipment-to-PIT assignments.
 
 For CCR hourly, assignments also support additional fields (set via **Klasifikasi CCR** modal on each row):
-- **Material Type** — limestone, shalestone, coal, overburden (ob)
-- **Equipment Role** — loader, hauler, grader
+- **Material Type** — limestone, shalestone, coal, overburden (ob), top_soil
+- **Equipment Role** — loader, hauler, grader; for 022C trips: excavator (digger), hauler (truck)
 - **Display Order** — column order in the hourly grid
 
 ---
@@ -859,6 +994,10 @@ On mobile (< 1024px), the sidebar is hidden and replaced by a drawer:
 | CCR heatmap empty | No hourly data / plan / unclassified equipment | Enter hourly data; set material daily plan; classify equipment via Klasifikasi CCR |
 | CCR Hourly tab empty on Daily Entry | No hourly records for that date+site | Fill grid via `Sidebar → CCR Hourly → Hourly Entry` |
 | Hourly grid has no equipment columns | Units not classified for CCR | Admin: `Sidebar → Equipment` → **Klasifikasi CCR** per unit |
+| CCR 022C import failed | Wrong file format / sheet | Ensure Excel file contains **DATA TRIP** sheet and site 022C is selected |
+| Units unmatched during 022C import | Equipment codes not in arkfleet/assignment | Assign & classify equipment; re-import or enter manually via Trip Entry |
+| Trip vs manual reconciliation red | Significant difference between trip rollup and manual input | Check trip data & Produksi tab; verify `parallel`/`trip_derived` mode matches site policy |
+| Pairing panel empty | No trip records for that date | Import Excel or add trips via Trip Entry 022C |
 
 ### 6.2 Common Errors
 

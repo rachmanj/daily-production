@@ -1,6 +1,6 @@
 # Panduan Pengguna ARKA MineOps
 
-> **Versi:** 1.1 · **Terakhir diperbarui:** 30 Juli 2026  
+> **Versi:** 1.2 · **Terakhir diperbarui:** 31 Juli 2026  
 > PT. Arkananta · Integrated Mining Operations Dashboard
 
 ---
@@ -32,7 +32,7 @@ ARKA MineOps menyatukan tiga laporan harian legacy:
 | Fuel Report | Tab **Fuel** |
 | Daily Info Site | Tab **Info Site** + **Deployment** |
 
-Selain produksi harian, platform ini juga mencakup monitoring fuel, plan vs actual, procurement KPI (dari SAP B1 via ARK-GS), CCR hourly production, dan laporan otomatis PDF/Excel.
+Selain produksi harian, platform ini juga mencakup monitoring fuel, plan vs actual, procurement KPI (dari SAP B1 via ARK-GS), CCR hourly production (021C/025C), CCR 022C trip production, dan laporan otomatis PDF/Excel.
 
 ### 1.2 Ringkasan Fitur Utama
 
@@ -41,7 +41,8 @@ Selain produksi harian, platform ini juga mencakup monitoring fuel, plan vs actu
 | **Executive Dashboard** | KPI produksi (OB, Coal, SR, Fuel), trend chart, status alat, produksi per-PIT |
 | **Daily Entry** | Input harian terpadu: produksi, fuel, deployment, info site; tab total CCR hourly di site CCR-enabled |
 | **Fuel Dashboard** | Monitoring konsumsi BBM per alat, FCR, trend |
-| **CCR Hourly** | Produksi per jam per alat (Limestone, Shalestone, Coal, Overburden) dengan heatmap; terintegrasi ke Daily Entry di site CCR |
+| **CCR Hourly** | Produksi per jam per alat (Limestone, Shalestone) di 021C/025C — dashboard KPI, heatmap, grid input; terintegrasi ke Daily Entry |
+| **CCR 022C** | Produksi trip-level (OB, Coal, Top Soil) di 022C — import Excel, entry manual, pairing excavator×hauler, rekonsiliasi |
 | **Plan vs Actual** | Target bulanan per PIT, achievement %, analisis variance |
 | **Procurement KPI** | Budget, GRPO, NPI dari ARK-GS (SAP B1) |
 | **Reports** | Laporan harian, custom periode, konsolidasi multi-site |
@@ -147,7 +148,7 @@ Menu utama di sidebar kiri (desktop) atau drawer (mobile):
 |------|------|-----------|
 | **Dashboard** | `Sidebar → Dashboard` | Executive Dashboard KPI |
 | **Daily Entry** | `Sidebar → Daily Entry` | Input & kelola entry harian |
-| **CCR Hourly** | `Sidebar → CCR Hourly` | Submenu Hourly Entry & CCR Dashboard |
+| **CCR Hourly** | `Sidebar → CCR Hourly` | Submenu: Hourly Entry, CCR Dashboard, Import CCR 022C, Trip Entry 022C |
 | **Fuel** | `Sidebar → Fuel` | Dashboard konsumsi BBM |
 | **Equipment** | `Sidebar → Equipment` | Penugasan alat ke PIT *(Admin)* |
 | **Sites** | `Sidebar → Sites` | Master data site *(Admin)* |
@@ -325,7 +326,7 @@ Input informasi umum site harian (menggantikan Daily Info Site — bagian non-eq
 
 **Path:** `Daily Entry → [Entry] → Tab CCR Hourly`
 
-Di site yang mengaktifkan CCR Hourly (021C, 025C, 017C, 022C), tab tambahan ini menampilkan **total harian live** yang diagregasi dari data hourly production untuk entry tersebut.
+Di site yang mengaktifkan CCR (021C, 025C, 017C, 022C), tab tambahan ini menampilkan **total harian live** yang diagregasi dari data hourly production untuk entry tersebut. Di site **022C**, total dapat berasal dari rollup data trip (lihat §3.7).
 
 | Kolom | Keterangan |
 |-------|------------|
@@ -454,7 +455,7 @@ Untuk site yang memakai CCR Hourly, setiap unit yang di-assign juga harus diklas
 1. Di tabel assignment, klik **Klasifikasi CCR** pada baris alat.
 2. Di modal, atur:
    - **Material Type** — Limestone, Shalestone, Coal, Overburden (OB), atau kosongkan untuk umum
-   - **Equipment Role** — mis. loader, hauler, grader
+   - **Equipment Role** — mis. loader, hauler, grader; untuk 022C trip: `excavator` (digger) atau `hauler` (truk)
    - **Display Order** — urutan kolom di heatmap/grid hourly (angka kecil = kiri)
    - **Tracking Aktif** — sertakan di ringkasan fleet hourly
 3. Klik **Simpan**.
@@ -527,27 +528,47 @@ Data jam hujan/licin diambil dari tab **Info Site** daily entry.
 
 ---
 
-### 3.6 CCR Hourly Production
+### 3.6 CCR Hourly Production (021C/025C)
 
-Modul monitoring produksi **per jam per alat** sebagai stream paralel dengan daily entry OB/Coal klasik. Menggantikan Google Sheets CCR di site semen (021C, 025C) dan mendukung site batubara (017C, 022C) untuk pelacakan Coal dan Overburden.
+Modul monitoring produksi **per jam per alat** untuk site semen **021C** dan **025C**. Material utama: **Limestone (LS)** dan **Shalestone (SH)**. Menggantikan Google Sheets CCR hourly dengan grid terintegrasi, heatmap real-time, dan workflow persetujuan yang sama dengan Daily Entry.
 
-**Site CCR-enabled:** 021C, 025C, 017C, 022C (dikonfigurasi di pengaturan sistem).
+**Submenu CCR Hourly** (`Sidebar → CCR Hourly`):
+
+| Submenu | Path | Fungsi |
+|---------|------|--------|
+| **Hourly Entry** | `Sidebar → CCR Hourly → Hourly Entry` | Grid input tonase per jam per alat |
+| **CCR Dashboard** | `Sidebar → CCR Hourly → CCR Dashboard` | KPI, heatmap, trend, fleet status |
+| **Import CCR 022C** | `Sidebar → CCR Hourly → Import CCR 022C` | Import Excel trip-level *(site 022C — lihat §3.7)* |
+| **Trip Entry 022C** | `Sidebar → CCR Hourly → Trip Entry 022C` | Input trip manual *(site 022C — lihat §3.7)* |
+
+**Site CCR Hourly (LS/SH):** 021C (Limestone + Shalestone), 025C (Limestone).
 
 #### CCR Dashboard
 
 **Path:** `Sidebar → CCR Hourly → CCR Dashboard`
 
+Dashboard monitoring produksi hourly dengan filter **Site**, **Tanggal**, dan **Material**.
+
 | Komponen | Deskripsi |
 |----------|-----------|
-| **KPI Card** | DTD & MTD actual vs plan, achievement %, target per jam |
-| **Heatmap** | Grid jam × alat, warna merah→hijau berdasarkan achievement |
-| **Trend Chart** | Total tonase per jam |
-| **Fleet Status** | Jumlah unit per role (loader, hauler, grader) |
+| **KPI Card** | Per material terpilih: **DTD** (actual vs plan), **MTD** (actual vs plan), **Jam Ini** (tonase jam berjalan vs target jam) |
+| **Hourly Heatmap** | Tabel warna **jam × alat** — setiap sel menampilkan tonase (Mton) pada interval jam tersebut |
+| **Trend Chart** | Grafik total tonase per jam sepanjang hari |
+| **Fleet Status** | Ringkasan jumlah unit aktif per role (loader, hauler, grader) dari equipment assignment |
+
+**Skema warna heatmap** (berdasarkan achievement vs target per jam):
+
+| Warna | Kondisi |
+|-------|---------|
+| Hijau | Achievement ≥ 95% |
+| Kuning | Achievement 70%–94% |
+| Merah | Achievement < 70% |
+| Transparan | Belum ada target harian dikonfigurasi |
 
 **Filter:**
-- **Site** — 021C, 025C, 017C, 022C
+- **Site** — 021C, 025C (dan site CCR lain jika diaktifkan)
 - **Tanggal**
-- **Material** — Limestone (LS), Shalestone (SH), Coal, Overburden (OB), Lainnya
+- **Material** — Limestone (LS), Shalestone (SH)
 
 **Export:** Tombol **Export Excel** dan **Export PDF** di toolbar.
 
@@ -559,28 +580,44 @@ Modul monitoring produksi **per jam per alat** sebagai stream paralel dengan dai
 
 Grid input tonase per jam per alat — setara satu sel di Google Sheet CCR.
 
-**Membuat entry hourly:**
-1. Klik **Entry Baru**.
-2. Pilih tanggal, site, material, dan shift.
-3. Buka entry → grid menampilkan:
-   - **Baris** = interval jam (00:00–01:00 s/d 23:00–24:00)
-   - **Kolom** = alat ter-assign (E 084, E 096, dll.) — dari Equipment Assignment yang sudah diklasifikasi CCR
-   - **Sel** = tonase (Mton) pada jam tersebut
+**Membuat CCR daily entry (hourly):**
 
-4. Isi tonase per sel.
-5. Simpan — mengikuti workflow draft → submit → approve yang sama dengan Daily Entry (header `daily_entries` bersama per tanggal + site).
+1. Buka `Sidebar → CCR Hourly → Hourly Entry`.
+2. Klik **Entry Baru**.
+3. Isi form pembuatan:
+   - **Tanggal** — tanggal produksi
+   - **Site** — 021C atau 025C
+   - **Material** — Limestone (LS) atau Shalestone (SH)
+   - **Shift** — Siang / Malam
+4. Klik **Buat & Lanjut Input** — Anda diarahkan ke halaman grid.
+
+> Satu entry hourly unik per kombinasi **tanggal + site + material + shift**. Entry menempel pada `daily_entry` header yang sama (tanggal + site).
+
+**Menggunakan grid hourly:**
+
+| Dimensi | Isi |
+|---------|-----|
+| **Baris** | Interval jam (00:00–01:00 s/d 23:00–24:00) |
+| **Kolom** | Alat ter-assign dari Equipment Assignment (mis. E 084, E 096) — hanya unit yang sudah diklasifikasi CCR |
+| **Sel** | Tonase (Mton) pada jam tersebut — ketik angka langsung di sel |
+| **Kolom D/Shift** | Total per baris jam (otomatis) |
+| **Baris Total** | Total per kolom alat (otomatis) |
+
+**Langkah input:**
+1. Isi tonase per sel sesuai output alat per jam.
+2. Klik **Simpan** — data tersimpan meski status masih Draft.
+3. Setelah lengkap, ikuti workflow **Draft → Submit → Approve** (sama dengan Daily Entry).
+
+**Fleet status:** Header grid menampilkan ringkasan armada yang ter-assign untuk material tersebut. Pastikan alat sudah diklasifikasi via `Sidebar → Equipment → Klasifikasi CCR`.
 
 **Hubungan ke Daily Entry:** Untuk tanggal dan site yang sama, record hourly menempel pada daily entry yang sama. Buka `Daily Entry → [Entry] → Tab CCR Hourly` untuk melihat total harian tanpa input ulang.
 
-#### Material Types
+#### Material Types (021C/025C)
 
-| Material | Label | Site umum |
-|----------|-------|-----------|
+| Material | Label | Site |
+|----------|-------|------|
 | `limestone` | Limestone (LS) | 021C, 025C |
 | `shalestone` | Shalestone (SH) | 021C |
-| `coal` | Coal | 017C, 022C |
-| `ob` | Overburden (OB) | 017C, 022C |
-| `other` | Lainnya | — |
 
 #### Per-hour Per-equipment Tracking
 
@@ -595,7 +632,105 @@ Achievement sel = tonase_actual / target_per_jam
 
 ---
 
-### 3.7 Procurement KPI
+### 3.7 CCR 022C Trip Production
+
+Modul monitoring produksi **trip-level** (satu baris = satu ritase truk) untuk site batubara **022C GPK**. Material: **Overburden (OB)**, **Coal**, dan **Top Soil**. Data trip di-agregasi otomatis ke heatmap hourly dan — tergantung mode — ke tab Produksi Daily Entry.
+
+**Perbedaan dengan CCR Hourly (021C/025C):**
+
+| Dimensi | CCR Hourly (021C/025C) | CCR 022C |
+|---------|------------------------|----------|
+| Granularitas | Agregat per jam per alat | Per trip (ritase truk) |
+| Material | Limestone, Shalestone | OB, Coal, Top Soil |
+| Pasangan alat | Satu alat per kolom | Excavator × Hauler per trip |
+| Volume harian | ~24 baris/jam × alat | ~250+ trip/hari |
+
+#### Import CCR 022C
+
+**Path:** `Sidebar → CCR Hourly → Import CCR 022C`
+
+Import massal dari file Excel CCR 022C legacy (sheet **DATA TRIP**).
+
+**Langkah:**
+1. Buka halaman Import CCR 022C.
+2. Pilih **Site** (022C).
+3. Drag & drop atau pilih file `.xlsx` / `.xls` (sheet DATA TRIP akan di-parse otomatis).
+4. Klik **Upload & Preview**.
+5. Halaman **Preview** menampilkan:
+   - Tanggal produksi terdeteksi
+   - Total trip, rollup OB (BCM), rollup Coal (Mton)
+   - Kode unit yang belum match ke arkfleet (jika ada)
+   - Error parsing per baris (jika ada)
+6. Review mapping — pastikan tanggal dan jumlah trip sesuai.
+7. Klik **Import & Rollup** untuk mengonfirmasi — trip records disimpan dan diagregasi ke hourly heatmap.
+
+> Import berjalan di background untuk file besar. Refresh halaman preview jika status masih `parsing`.
+
+#### Trip Entry 022C
+
+**Path:** `Sidebar → CCR Hourly → Trip Entry 022C`
+
+Form input trip manual — untuk menambah satu ritase tanpa import Excel.
+
+| Field | Keterangan |
+|-------|------------|
+| **Tanggal** | Tanggal produksi |
+| **Shift** | Siang / Malam |
+| **Excavator** | Alat gali (digger) — dari equipment assignment role `excavator` |
+| **Hauler** | Truk angkut — dari equipment assignment role `hauler` |
+| **Material** | OB, Coal, atau Top Soil |
+| **Jam (0–23)** | Jam mulai interval trip |
+| **Volume (BCM)** | Volume per trip |
+| **% Load** | Persentase muatan truk |
+| **Ret/Trip** | Jumlah ritase (default 1.0) |
+| **Kapasitas Truk (BCM)** | Kapasitas truk (opsional) |
+
+Klik **Simpan Trip** — trip langsung masuk ke agregasi hourly untuk heatmap.
+
+#### Dashboard 022C
+
+**Path:** `Sidebar → CCR Hourly → CCR Dashboard` *(pilih site 022C)*
+
+Dashboard 022C menampilkan komponen khusus trip-site di atas heatmap hourly:
+
+| Komponen | Deskripsi |
+|----------|-----------|
+| **KPI Cards (3 material)** | Satu kartu per material (OB, Coal, Top Soil) — masing-masing menampilkan DTD, MTD, dan **Jam Ini** |
+| **Hourly Heatmap** | Agregat trip → tonase per jam per excavator (warna sama: hijau ≥95%, kuning 70–95%, merah <70%) |
+| **Pairing Excavator × Hauler** | Panel collapse per excavator — daftar hauler yang melayani, jumlah ritase, total volume BCM, rata-rata % load |
+| **Fleet Status** | Jumlah unit per role |
+| **Rekonsiliasi Trip vs Manual** | Perbandingan Σ trip vs input manual OB/Coal di Daily Entry |
+
+**Filter material:** Pilih OB, Coal, atau Top Soil untuk heatmap dan trend pada material tersebut.
+
+#### Rekonsiliasi
+
+Panel **Rekonsiliasi Trip vs Manual** di CCR Dashboard (site 022C) membandingkan:
+
+| Metrik | Sumber Trip | Sumber Manual |
+|--------|-------------|---------------|
+| OB | Σ volume trip OB (BCM) | Tab Produksi Daily Entry |
+| Coal | Σ volume trip Coal (Mton) | Tab Produksi Daily Entry |
+
+**Indikator selisih (Δ):**
+- Hijau — selisih < 0,01
+- Kuning — selisih < 5% dari nilai manual
+- Merah — selisih signifikan
+
+#### Mode Production Source (Feature Flag)
+
+Site 022C mendukung dua mode sumber data produksi harian OB/Coal, dikonfigurasi oleh Admin:
+
+| Mode | Perilaku | Kapan dipakai |
+|------|----------|---------------|
+| **`parallel`** *(default)* | Trip data untuk analisis granular; OB/Coal harian tetap diinput manual di Daily Entry. Panel rekonsiliasi menandai selisih. | Fase transisi / dual-run |
+| **`trip_derived`** | Tab Produksi OB/Coal **auto-populate** dari rollup trip. Input manual menjadi read-only. | Setelah data trip dipercaya |
+
+Mode aktif ditampilkan sebagai tag di panel Rekonsiliasi (`parallel` atau `trip_derived`).
+
+---
+
+### 3.8 Procurement KPI
 
 **Path:** `Sidebar → Procurement`
 
@@ -638,7 +773,7 @@ Badge **Last Synced** menampilkan waktu sync terakhir dari ARK-GS.
 
 ---
 
-### 3.8 Reports
+### 3.9 Reports
 
 **Path:** `Sidebar → Reports`
 
@@ -676,7 +811,7 @@ Ringkasan multi-site dan multi-periode mencakup:
 
 ---
 
-### 3.9 Notifications
+### 3.10 Notifications
 
 #### Notification Bell
 
@@ -790,8 +925,8 @@ Kelola shift operasional:
 Lihat [§3.4 Equipment](#34-equipment) — hanya Admin yang dapat mengelola assignment alat ke PIT.
 
 Untuk CCR hourly, assignment juga mendukung field tambahan (diatur via modal **Klasifikasi CCR** pada setiap baris):
-- **Material Type** — limestone, shalestone, coal, overburden (ob)
-- **Equipment Role** — loader, hauler, grader
+- **Material Type** — limestone, shalestone, coal, overburden (ob), top_soil
+- **Equipment Role** — loader, hauler, grader; untuk trip 022C: excavator (digger), hauler (truk)
 - **Display Order** — urutan kolom di grid hourly
 
 ---
@@ -859,6 +994,10 @@ Di mobile (< 1024px), sidebar disembunyikan dan diganti drawer:
 | Heatmap CCR kosong | Belum ada data hourly / plan / alat belum diklasifikasi | Input data hourly; set material daily plan; klasifikasi alat via Klasifikasi CCR |
 | Tab CCR Hourly kosong di Daily Entry | Belum ada record hourly untuk tanggal+site itu | Isi grid via `Sidebar → CCR Hourly → Hourly Entry` |
 | Grid hourly tanpa kolom alat | Unit belum diklasifikasi CCR | Admin: `Sidebar → Equipment` → **Klasifikasi CCR** per unit |
+| Import CCR 022C gagal | Format file / sheet salah | Pastikan file Excel berisi sheet **DATA TRIP** dan site 022C dipilih |
+| Unit tidak match saat import 022C | Kode alat belum di arkfleet/assignment | Assign & klasifikasi alat di Equipment; import ulang atau input manual via Trip Entry |
+| Rekonsiliasi trip vs manual merah | Selisih signifikan antara trip rollup dan input manual | Cek data trip & tab Produksi; pastikan mode `parallel`/`trip_derived` sesuai kebijakan site |
+| Panel pairing kosong | Belum ada trip records untuk tanggal itu | Import Excel atau tambah trip via Trip Entry 022C |
 
 ### 6.2 Error Umum
 
