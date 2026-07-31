@@ -4,6 +4,7 @@ const { Text } = Typography;
 
 const ROLE_LABELS: Record<string, string> = {
     loader: 'Loader',
+    excavator: 'Excavator',
     hauler: 'Hauler',
     grader: 'Grader',
     other: 'Lainnya',

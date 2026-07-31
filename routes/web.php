@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Ccr022cImportController;
 use App\Http\Controllers\DailyEntryController;
 use App\Http\Controllers\DailyEntryWorkflowController;
 use App\Http\Controllers\DashboardController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SiteInfoController;
 use App\Http\Controllers\SiteSwitchController;
+use App\Http\Controllers\TripEntryController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VarianceController;
 use Illuminate\Support\Facades\Route;
@@ -58,6 +60,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/hourly/{dailyEntry}', [HourlyEntryController::class, 'update'])->name('hourly.update');
     Route::get('/hourly-dashboard', [HourlyDashboardController::class, 'index'])->name('hourly-dashboard.index');
     Route::get('/hourly/report/export', [HourlyDashboardController::class, 'export'])->name('hourly.report.export');
+
+    // CCR 022C Trip
+    Route::get('/ccr-022c/import', [Ccr022cImportController::class, 'create'])->name('ccr-022c.import.create');
+    Route::post('/ccr-022c/import', [Ccr022cImportController::class, 'store'])->name('ccr-022c.import.store');
+    Route::get('/ccr-022c/import/{batch}/preview', [Ccr022cImportController::class, 'preview'])->name('ccr-022c.import.preview');
+    Route::post('/ccr-022c/import/{batch}/confirm', [Ccr022cImportController::class, 'confirm'])->name('ccr-022c.import.confirm');
+    Route::get('/ccr-022c/trip-entry', [TripEntryController::class, 'create'])->name('ccr-022c.trip-entry.create');
+    Route::post('/ccr-022c/trip-entry', [TripEntryController::class, 'store'])->name('ccr-022c.trip-entry.store');
 
     // Excel Import
     Route::get('/excel-imports/create', [ExcelImportController::class, 'create'])->name('excel-imports.create');

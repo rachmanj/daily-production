@@ -8,6 +8,7 @@ enum MaterialType: string
     case Shalestone = 'shalestone';
     case Coal = 'coal';
     case Overburden = 'ob';
+    case TopSoil = 'top_soil';
     case Other = 'other';
 
     public function label(): string
@@ -17,6 +18,7 @@ enum MaterialType: string
             self::Shalestone => 'Shalestone (SH)',
             self::Coal => 'Coal',
             self::Overburden => 'Overburden (OB)',
+            self::TopSoil => 'Top Soil',
             self::Other => 'Lainnya',
         };
     }

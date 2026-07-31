@@ -12,6 +12,8 @@ const routeMatchers: Array<{
     { prefix: '/excel-imports', selected: 'data-entry' },
     { prefix: '/hourly-dashboard', selected: 'hourly-dashboard', open: 'hourly' },
     { prefix: '/hourly', selected: 'hourly-entry', open: 'hourly' },
+    { prefix: '/ccr-022c/import', selected: 'ccr-022c-import', open: 'hourly' },
+    { prefix: '/ccr-022c/trip-entry', selected: 'ccr-022c-trip', open: 'hourly' },
     { prefix: '/dashboard/fuel', selected: 'fuel' },
     { prefix: '/monthly-plans', selected: 'monthly-plans' },
     { prefix: '/variance', selected: 'variance' },

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CcrPairingController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\DashboardDataController;
 use App\Http\Controllers\HourlyDashboardController;
@@ -41,6 +42,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/heatmap', [HourlyDashboardController::class, 'heatmap'])->name('heatmap');
         Route::get('/fleet', [HourlyDashboardController::class, 'fleet'])->name('fleet');
         Route::get('/trend', [HourlyDashboardController::class, 'trend'])->name('trend');
+        Route::get('/reconciliation', [HourlyDashboardController::class, 'reconciliation'])->name('reconciliation');
+    });
+
+    Route::prefix('ccr')->name('ccr-data.')->group(function () {
+        Route::get('/pairing', [CcrPairingController::class, 'pairing'])->name('pairing');
+        Route::get('/reconciliation', [CcrPairingController::class, 'reconciliation'])->name('reconciliation');
     });
 
     Route::get('/variance/data', [VarianceController::class, 'data'])->name('variance.data');

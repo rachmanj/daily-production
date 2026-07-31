@@ -94,6 +94,14 @@ export default function AuthenticatedLayout({
                         key: 'hourly-dashboard',
                         label: <Link href={route('hourly-dashboard.index')} onClick={() => setMobileDrawerOpen(false)}>CCR Dashboard</Link>,
                     },
+                    {
+                        key: 'ccr-022c-import',
+                        label: <Link href={route('ccr-022c.import.create')} onClick={() => setMobileDrawerOpen(false)}>Import CCR 022C</Link>,
+                    },
+                    {
+                        key: 'ccr-022c-trip',
+                        label: <Link href={route('ccr-022c.trip-entry.create')} onClick={() => setMobileDrawerOpen(false)}>Trip Entry 022C</Link>,
+                    },
                 ],
             },
             {

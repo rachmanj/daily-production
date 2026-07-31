@@ -67,3 +67,26 @@ export function getAchievementColor(achievement: number | null): 'success' | 'wa
     }
     return 'danger';
 }
+
+export interface PairingHauler {
+    hauler_id: number | null;
+    hauler_code: string | null;
+    trip_count: number;
+    total_volume: number;
+    avg_load_percent: number;
+}
+
+export interface PairingData {
+    excavator_id: number | null;
+    excavator_code: string | null;
+    haulers: PairingHauler[];
+    total_trips: number;
+    total_volume: number;
+}
+
+export interface ReconciliationData {
+    trip_ob: number;
+    trip_coal: number;
+    manual_ob: number;
+    manual_coal: number;
+}

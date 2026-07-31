@@ -122,6 +122,16 @@
 
 ---
 
+### [012] CCR 022C Trip Production — Rollup Engine (2026-07-31) ✅ COMPLETE
+
+**Pattern**: `trip_production_records` (granular) → `TripAggregationService` → `hourly_production_records` + `production_records`. Idempotent replace-per-entry on rollup.
+
+**Feature flag**: `config/mineops.php` → `production_source.022C` = `parallel` (default) or `trip_derived` (auto-populate daily OB/Coal).
+
+**Import**: `Ccr022cTripImport` reads sheet `DATA TRIP` by column position (row 1 headers are Excel formulas). Equipment match via `equipment_assignments` cache.
+
+**Coal density**: `config/mineops.coal_density_factor` per site (default 1.0) applied at rollup time only.
+
 ### [003] Database Conventions Locked (2026-07-23) ✅ COMPLETE
 
 **Conventions**: Tables in snake_case plural (`daily_entries`, `production_records`), FKs as `singular_id`, money as `decimal(14,2)`, all tables have `id` PK + timestamps. Business terms in Indonesian, code in English.

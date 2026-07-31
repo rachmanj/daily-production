@@ -1,8 +1,10 @@
 # Current Tasks
 
-**Last Updated**: 2026-07-30
+**Last Updated**: 2026-07-31
 
 ## Recently Completed
+
+- `[done] CCR 022C Trip Production H0–H3: trip_production_records, TripAggregationService rollup, Excel import (DATA TRIP), pairing panel, dashboard OB/Coal/Top Soil KPIs, reconciliation, PWA trip sync, feature flag production_source (completed: 2026-07-31)`
 
 - `[done] CCR Hourly ↔ Daily Entry integration — read-only per-entry hourly totals tab + header badge on Show/Edit (completed: 2026-07-30)`
 - `[done] CCR Hourly extended to 017C (KPUC) + 022C (GPK); added Overburden (OB) material type; site list centralized in config/mineops.php (completed: 2026-07-30)`

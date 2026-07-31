@@ -6,10 +6,12 @@ use App\Enums\EntryStatus;
 use App\Enums\MaterialType;
 use App\Exports\HourlyPdfExport;
 use App\Exports\HourlyProductionExport;
+use App\Models\DailyEntry;
 use App\Models\HourlyProductionRecord;
 use App\Models\Site;
 use App\Services\CalculationService;
 use App\Services\HourlyProductionService;
+use App\Services\TripAggregationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,14 +24,19 @@ class HourlyDashboardController extends Controller
     public function __construct(
         protected CalculationService $calculationService,
         protected HourlyProductionService $hourlyProductionService,
+        protected TripAggregationService $tripAggregationService,
     ) {}
 
     public function index(Request $request): Response
     {
         $sites = Site::query()->whereIn('code', config('mineops.ccr_site_codes'))->orderBy('code')->get(['id', 'code', 'name']);
         $siteId = $request->integer('site_id', $sites->first()?->id ?? 0);
+        $site = $sites->firstWhere('id', $siteId);
+        $siteCode = $site?->code ?? '021C';
+        $siteMaterials = $this->materialsForSite($siteCode);
+        $defaultMaterial = array_key_first($siteMaterials) ?? MaterialType::Limestone->value;
         $date = $request->string('date', now()->toDateString());
-        $material = $request->string('material', MaterialType::Limestone->value);
+        $material = $request->string('material', $defaultMaterial);
 
         return Inertia::render('hourly/Dashboard', [
             'sites' => $sites,
@@ -38,7 +45,10 @@ class HourlyDashboardController extends Controller
                 'date' => $date,
                 'material' => $material,
             ],
-            'materials' => MaterialType::options(),
+            'materials' => $siteMaterials,
+            'allMaterials' => MaterialType::options(),
+            'siteCode' => $siteCode,
+            'isTripSite' => in_array($siteCode, ['022C', '017C'], true),
         ]);
     }
 
@@ -87,7 +97,12 @@ class HourlyDashboardController extends Controller
         $material = MaterialType::from($validated['material']);
         $shiftId = $validated['shift_id'] ?? null;
 
-        $equipment = $this->hourlyProductionService->getEquipmentGrid($siteId, $material);
+        $site = Site::query()->findOrFail($validated['site_id']);
+        $isTripSite = in_array($site->code, ['022C', '017C'], true);
+
+        $equipment = $isTripSite
+            ? $this->hourlyProductionService->getExcavatorGrid($siteId)
+            : $this->hourlyProductionService->getEquipmentGrid($siteId, $material);
         $hourlyTarget = $this->calculationService->hourlyTarget($siteId, $date, $material);
 
         $query = HourlyProductionRecord::query()
@@ -170,6 +185,45 @@ class HourlyDashboardController extends Controller
         );
 
         return $export->download();
+    }
+
+    public function reconciliation(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'site_id' => ['required', 'exists:sites,id'],
+            'date' => ['required', 'date'],
+        ]);
+
+        $entry = DailyEntry::query()
+            ->where('site_id', $validated['site_id'])
+            ->whereDate('production_date', $validated['date'])
+            ->first();
+
+        if (! $entry) {
+            return response()->json([
+                'reconciliation' => null,
+                'production_source' => 'parallel',
+            ]);
+        }
+
+        $site = Site::query()->findOrFail($validated['site_id']);
+
+        return response()->json([
+            'reconciliation' => $this->tripAggregationService->reconcile($entry->id),
+            'production_source' => config("mineops.production_source.{$site->code}", 'parallel'),
+            'daily_entry_id' => $entry->id,
+        ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function materialsForSite(string $siteCode): array
+    {
+        $keys = config("mineops.ccr_site_materials.{$siteCode}", ['limestone', 'shalestone']);
+        $all = MaterialType::options();
+
+        return array_intersect_key($all, array_flip($keys));
     }
 
     /**

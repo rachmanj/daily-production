@@ -129,6 +129,29 @@ class HourlyProductionService
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function getExcavatorGrid(int $siteId): array
+    {
+        return EquipmentAssignment::query()
+            ->where('site_id', $siteId)
+            ->where('is_active_for_tracking', true)
+            ->where('equipment_role', 'excavator')
+            ->orderBy('display_order')
+            ->orderBy('unit_code')
+            ->get(['id', 'equipment_id', 'unit_code', 'equipment_role', 'display_order', 'plant_type_name'])
+            ->map(fn (EquipmentAssignment $a) => [
+                'assignment_id' => $a->id,
+                'equipment_id' => $a->equipment_id,
+                'unit_code' => $a->unit_code,
+                'equipment_role' => $a->equipment_role,
+                'display_order' => $a->display_order,
+                'plant_type_name' => $a->plant_type_name,
+            ])
+            ->all();
+    }
+
+    /**
      * @return array<int, array{material_type: string, material_label: string, total_tonnage: float, hours_filled: int}>
      */
     public function getDailyTotals(DailyEntry $entry): array

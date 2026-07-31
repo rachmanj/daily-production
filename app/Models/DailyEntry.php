@@ -77,4 +77,9 @@ class DailyEntry extends Model
     {
         return $this->hasMany(HourlyProductionRecord::class);
     }
+
+    public function tripProductionRecords(): HasMany
+    {
+        return $this->hasMany(TripProductionRecord::class);
+    }
 }

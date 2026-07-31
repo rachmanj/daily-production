@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DailyEntry;
 use App\Services\DailyEntryService;
 use App\Services\HourlyProductionService;
+use App\Services\TripProductionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,6 +16,7 @@ class SyncController extends Controller
     public function __construct(
         protected DailyEntryService $dailyEntryService,
         protected HourlyProductionService $hourlyProductionService,
+        protected TripProductionService $tripProductionService,
     ) {}
 
     public function dailyEntries(Request $request): JsonResponse
@@ -32,6 +34,7 @@ class SyncController extends Controller
             'entries.*.hourly.material_type' => ['nullable', 'string'],
             'entries.*.hourly.shift_id' => ['nullable', 'integer'],
             'entries.*.hourly.records' => ['nullable', 'array'],
+            'entries.*.trips' => ['nullable', 'array'],
         ]);
 
         $results = [];
@@ -61,6 +64,9 @@ class SyncController extends Controller
                     (int) ($entryData['hourly']['shift_id'] ?? 1),
                     $entryData['hourly']['records'],
                 );
+            }
+            if (! empty($entryData['trips'])) {
+                $this->tripProductionService->upsertTrips($entry, $entryData['trips']);
             }
 
             $results[] = [
