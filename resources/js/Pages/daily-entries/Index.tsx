@@ -20,6 +20,12 @@ import { useState } from 'react';
 const { useBreakpoint } = Grid;
 const { Text } = Typography;
 
+const STATUS_LABELS_EN: Record<string, string> = {
+    draft: 'Draft',
+    submitted: 'Submitted',
+    approved: 'Approved',
+};
+
 interface EntryRow {
     id: number;
     production_date: string;
@@ -78,7 +84,7 @@ export default function Index({ entries, filters, sites, statuses }: DailyEntrie
             dataIndex: 'status',
             key: 'status',
             width: 90,
-            render: (_, record) => <StatusBadge status={record.status} />,
+            render: (_, record) => <StatusBadge status={record.status} locale="en" />,
         },
         {
             title: 'Aksi',
@@ -155,7 +161,10 @@ export default function Index({ entries, filters, sites, statuses }: DailyEntrie
                 style={{ width: isMobile ? '100%' : 160 }}
                 value={filters.status}
                 onChange={(v) => applyFilters({ status: v })}
-                options={Object.entries(statuses).map(([value, label]) => ({ value, label }))}
+                options={Object.keys(statuses).map((value) => ({
+                    value,
+                    label: STATUS_LABELS_EN[value] ?? value,
+                }))}
             />
             <DatePicker
                 placeholder="Dari"

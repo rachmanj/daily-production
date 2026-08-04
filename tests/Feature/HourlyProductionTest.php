@@ -299,3 +299,48 @@ test('daily entry show excludes hourly totals for non ccr site', function () {
             ->where('hourlyTotals', null)
         );
 });
+
+test('hourly edit on approved entry redirects with error flash instead of 403', function () {
+    $site = Site::where('code', '021C')->firstOrFail();
+    $shiftId = Shift::query()->orderBy('id')->value('id');
+
+    $entry = DailyEntry::create([
+        'uuid' => (string) Str::uuid(),
+        'production_date' => '2026-08-05',
+        'site_id' => $site->id,
+        'created_by' => $this->user->id,
+        'status' => EntryStatus::Approved,
+        'source' => 'manual',
+    ]);
+
+    $this->get(route('hourly.edit', [
+        'dailyEntry' => $entry->id,
+        'material_type' => 'limestone',
+        'shift_id' => $shiftId,
+    ]))
+        ->assertRedirect(route('hourly.index'))
+        ->assertSessionHas('error');
+});
+
+test('hourly store on approved entry redirects with error flash instead of edit', function () {
+    $site = Site::where('code', '021C')->firstOrFail();
+    $shiftId = Shift::query()->orderBy('id')->value('id');
+
+    DailyEntry::create([
+        'uuid' => (string) Str::uuid(),
+        'production_date' => '2026-08-06',
+        'site_id' => $site->id,
+        'created_by' => $this->user->id,
+        'status' => EntryStatus::Approved,
+        'source' => 'manual',
+    ]);
+
+    $this->post(route('hourly.store'), [
+        'production_date' => '2026-08-06',
+        'site_id' => $site->id,
+        'material_type' => 'limestone',
+        'shift_id' => $shiftId,
+    ])
+        ->assertRedirect(route('hourly.index'))
+        ->assertSessionHas('error');
+});

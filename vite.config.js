@@ -5,6 +5,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
+    server: {
+        host: '127.0.0.1',
+        hmr: {
+            host: '127.0.0.1',
+        },
+    },
     plugins: [
         laravel({
             input: 'resources/js/app.tsx',
@@ -32,7 +38,6 @@ export default defineConfig({
             },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-                navigateFallback: '/dashboard',
                 runtimeCaching: [
                     {
                         urlPattern: /^https:\/\/fonts\.bunny\.net\/.*/i,

@@ -20,6 +20,8 @@ use Inertia\Response;
 
 class HourlyEntryController extends Controller
 {
+    private const NON_DRAFT_MESSAGE = 'Hourly entry hanya dapat diedit saat Daily Entry masih berstatus Draft.';
+
     public function __construct(
         protected HourlyProductionService $hourlyProductionService,
         protected CalculationService $calculationService,
@@ -86,6 +88,10 @@ class HourlyEntryController extends Controller
 
         if (! $entry) {
             $entry = $this->hourlyProductionService->createEntry($data, $request->user()->id);
+        } elseif ($entry->status !== EntryStatus::Draft) {
+            return redirect()
+                ->route('hourly.index')
+                ->with('error', self::NON_DRAFT_MESSAGE);
         }
 
         return redirect()->route('hourly.edit', [
@@ -95,8 +101,12 @@ class HourlyEntryController extends Controller
         ])->with('success', 'Entry CCR berhasil dibuat.');
     }
 
-    public function edit(Request $request, DailyEntry $dailyEntry): Response
+    public function edit(Request $request, DailyEntry $dailyEntry): Response|RedirectResponse
     {
+        if ($redirect = $this->redirectIfNotDraft($dailyEntry, $request)) {
+            return $redirect;
+        }
+
         $this->authorize('update', $dailyEntry);
 
         $materialType = MaterialType::from($request->string('material_type', MaterialType::Limestone->value));
@@ -123,6 +133,10 @@ class HourlyEntryController extends Controller
 
     public function update(UpdateHourlyRecordsRequest $request, DailyEntry $dailyEntry): RedirectResponse|JsonResponse
     {
+        if ($redirect = $this->redirectIfNotDraft($dailyEntry, $request)) {
+            return $redirect;
+        }
+
         $this->authorize('update', $dailyEntry);
 
         $data = $request->validated();
@@ -140,5 +154,20 @@ class HourlyEntryController extends Controller
         }
 
         return redirect()->back()->with('success', 'Data hourly berhasil disimpan.');
+    }
+
+    private function redirectIfNotDraft(DailyEntry $dailyEntry, Request $request): RedirectResponse|JsonResponse|null
+    {
+        if ($dailyEntry->status === EntryStatus::Draft) {
+            return null;
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => self::NON_DRAFT_MESSAGE], 403);
+        }
+
+        return redirect()
+            ->route('hourly.index')
+            ->with('error', self::NON_DRAFT_MESSAGE);
     }
 }

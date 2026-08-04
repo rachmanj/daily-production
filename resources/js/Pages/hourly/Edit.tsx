@@ -57,8 +57,12 @@ export default function Edit({
             });
             message.success('Data hourly disimpan');
             router.reload({ only: ['records'] });
-        } catch {
-            message.error('Gagal menyimpan data hourly');
+        } catch (error) {
+            const msg =
+                axios.isAxiosError(error) && typeof error.response?.data?.message === 'string'
+                    ? error.response.data.message
+                    : 'Gagal menyimpan data hourly';
+            message.error(msg);
         } finally {
             setSaving(false);
         }

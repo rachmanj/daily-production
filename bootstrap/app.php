@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -35,4 +36,29 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(function (AuthorizationException $e, Request $request) {
+            $message = $e->getMessage();
+            if ($message === 'This action is unauthorized.') {
+                $message = 'Anda tidak memiliki akses untuk melakukan tindakan ini.';
+            }
+
+            if ($request->is('api/*')) {
+                return null;
+            }
+
+            if ($request->expectsJson() && ! $request->header('X-Inertia')) {
+                return response()->json(['message' => $message], 403);
+            }
+
+            $fallback = match (true) {
+                $request->routeIs('hourly.*') => route('hourly.index'),
+                $request->routeIs('daily-entries.*') => route('daily-entries.index'),
+                default => route('dashboard'),
+            };
+
+            return redirect()
+                ->back(fallback: $fallback)
+                ->with('error', $message);
+        });
     })->create();

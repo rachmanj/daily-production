@@ -17,6 +17,7 @@ use App\Services\CalculationService;
 use App\Services\DailyEntryService;
 use App\Services\HourlyProductionService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,6 +25,8 @@ use Inertia\Response;
 
 class DailyEntryController extends Controller
 {
+    private const NON_DRAFT_MESSAGE = 'Daily entry hanya dapat diedit saat masih berstatus Draft.';
+
     public function __construct(
         protected DailyEntryService $dailyEntryService,
         protected HourlyProductionService $hourlyProductionService,
@@ -83,15 +86,23 @@ class DailyEntryController extends Controller
         return Inertia::render('daily-entries/Show', $this->entryPayload($dailyEntry));
     }
 
-    public function edit(DailyEntry $dailyEntry): Response
+    public function edit(DailyEntry $dailyEntry, Request $request): Response|RedirectResponse
     {
+        if ($redirect = $this->redirectIfNotEditable($dailyEntry, $request)) {
+            return $redirect;
+        }
+
         $this->authorize('update', $dailyEntry);
 
         return Inertia::render('daily-entries/Edit', $this->entryPayload($dailyEntry));
     }
 
-    public function update(Request $request, DailyEntry $dailyEntry): RedirectResponse
+    public function update(Request $request, DailyEntry $dailyEntry): RedirectResponse|JsonResponse
     {
+        if ($redirect = $this->redirectIfNotEditable($dailyEntry, $request)) {
+            return $redirect;
+        }
+
         $this->authorize('update', $dailyEntry);
 
         $dailyEntry->update($request->only(['production_date']));
@@ -99,8 +110,12 @@ class DailyEntryController extends Controller
         return redirect()->back()->with('success', 'Entry berhasil diperbarui.');
     }
 
-    public function destroy(DailyEntry $dailyEntry): RedirectResponse
+    public function destroy(DailyEntry $dailyEntry, Request $request): RedirectResponse|JsonResponse
     {
+        if ($redirect = $this->redirectIfNotEditable($dailyEntry, $request)) {
+            return $redirect;
+        }
+
         $this->authorize('delete', $dailyEntry);
         $dailyEntry->delete();
 
@@ -173,5 +188,20 @@ class DailyEntryController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function redirectIfNotEditable(DailyEntry $dailyEntry, Request $request): RedirectResponse|JsonResponse|null
+    {
+        if ($dailyEntry->status === EntryStatus::Draft) {
+            return null;
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => self::NON_DRAFT_MESSAGE], 403);
+        }
+
+        return redirect()
+            ->route('daily-entries.index')
+            ->with('error', self::NON_DRAFT_MESSAGE);
     }
 }

@@ -9,6 +9,12 @@ import type { ProColumns } from '@ant-design/pro-components';
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { dayjs } from '@/lib/date';
 
+const STATUS_LABELS_EN: Record<string, string> = {
+    draft: 'Draft',
+    submitted: 'Submitted',
+    approved: 'Approved',
+};
+
 interface EntryRow {
     id: number;
     production_date: string;
@@ -58,7 +64,7 @@ export default function Index({ entries, filters, sites, statuses, materials }: 
         {
             title: 'Status',
             dataIndex: 'status',
-            render: (_, record) => <StatusBadge status={record.status} />,
+            render: (_, record) => <StatusBadge status={record.status} locale="en" />,
         },
         {
             title: 'Aksi',
@@ -101,7 +107,10 @@ export default function Index({ entries, filters, sites, statuses, materials }: 
                         style={{ width: 140 }}
                         value={filters.status}
                         onChange={(v) => applyFilters({ status: v })}
-                        options={Object.entries(statuses).map(([value, label]) => ({ value, label }))}
+                        options={Object.keys(statuses).map((value) => ({
+                            value,
+                            label: STATUS_LABELS_EN[value] ?? value,
+                        }))}
                     />
                     <DatePicker
                         placeholder="Dari"

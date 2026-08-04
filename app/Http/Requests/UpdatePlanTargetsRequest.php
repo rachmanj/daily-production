@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\PitOwner;
+use App\Enums\PlanMetric;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdatePlanTargetsRequest extends FormRequest
 {
@@ -19,8 +22,8 @@ class UpdatePlanTargetsRequest extends FormRequest
         return [
             'targets' => ['required', 'array'],
             'targets.*.pit_id' => ['required', 'exists:pits,id'],
-            'targets.*.metric' => ['required', 'string'],
-            'targets.*.owner' => ['required', 'string'],
+            'targets.*.metric' => ['required', Rule::enum(PlanMetric::class)],
+            'targets.*.owner' => ['required', Rule::enum(PitOwner::class)],
             'targets.*.target_value' => ['required', 'numeric', 'min:0'],
         ];
     }
