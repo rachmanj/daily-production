@@ -21,6 +21,21 @@ class CalculationService
         protected EquipmentApiService $equipmentApiService,
     ) {}
 
+    /**
+     * Statuses visible in dashboard / production calculations.
+     * Draft (during shift), Submitted (after shift), and Approved.
+     *
+     * @return array<int, string>
+     */
+    protected function visibleStatuses(): array
+    {
+        return [
+            EntryStatus::Draft->value,
+            EntryStatus::Submitted->value,
+            EntryStatus::Approved->value,
+        ];
+    }
+
     public function mtd(int $siteId, Carbon $date, string $metric): float
     {
         $cacheKey = "calc:mtd:{$siteId}:{$date->format('Y-m')}:{$metric}";
@@ -199,7 +214,7 @@ class CalculationService
                 ->join('daily_entries', 'daily_entries.id', '=', 'production_records.daily_entry_id')
                 ->join('pits', 'pits.id', '=', 'production_records.pit_id')
                 ->where('daily_entries.site_id', $siteId)
-                ->where('daily_entries.status', EntryStatus::Approved)
+                ->whereIn('daily_entries.status', $this->visibleStatuses())
                 ->whereDate('daily_entries.production_date', $date)
                 ->groupBy('pits.id', 'pits.code')
                 ->get()
@@ -228,7 +243,7 @@ class CalculationService
                 ->whereHas('dailyEntry', fn ($q) => $q
                     ->where('site_id', $siteId)
                     ->whereDate('production_date', $date)
-                    ->where('status', EntryStatus::Approved))
+                    ->whereIn('status', $this->visibleStatuses()))
                 ->sum('tonnage');
         });
     }
@@ -242,7 +257,7 @@ class CalculationService
                 ->where('material_type', $material->value)
                 ->whereHas('dailyEntry', fn ($q) => $q
                     ->where('site_id', $siteId)
-                    ->where('status', EntryStatus::Approved)
+                    ->whereIn('status', $this->visibleStatuses())
                     ->whereBetween('production_date', [
                         $date->copy()->startOfMonth()->toDateString(),
                         $date->copy()->endOfMonth()->toDateString(),
@@ -305,7 +320,7 @@ class CalculationService
             ->whereHas('dailyEntry', fn ($q) => $q
                 ->where('site_id', $siteId)
                 ->whereDate('production_date', $date)
-                ->where('status', EntryStatus::Approved))
+                ->whereIn('status', $this->visibleStatuses()))
             ->orderByDesc('hour_slot')
             ->first();
 
@@ -330,7 +345,7 @@ class CalculationService
             ->whereHas('dailyEntry', fn ($q) => $q
                 ->where('site_id', $siteId)
                 ->whereDate('production_date', $date)
-                ->where('status', EntryStatus::Approved))
+                ->whereIn('status', $this->visibleStatuses()))
             ->groupBy('hour_slot')
             ->orderBy('hour_slot');
 
@@ -398,7 +413,7 @@ class CalculationService
         return (float) ProductionRecord::query()
             ->whereHas('dailyEntry', function ($q) use ($siteId, $from, $to) {
                 $q->where('site_id', $siteId)
-                    ->where('status', EntryStatus::Approved)
+                    ->whereIn('status', $this->visibleStatuses())
                     ->whereBetween('production_date', [$from->toDateString(), $to->toDateString()]);
             })
             ->sum($column);
